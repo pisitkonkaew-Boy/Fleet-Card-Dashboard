@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⛽ Fleet Card Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800;900&display=swap');
+:root{
+  --bg:#f0f4fa;--surface:#fff;--surface2:#f5f7fb;--surface3:#eef1f8;
+  --border:#dde2ef;--accent:#1a56db;--accent-s:#e8effe;
+  --a2:#e3522c;--a2-s:#fef0ec;
+  --green:#057a55;--green-s:#e3faea;
+  --yellow:#c27803;--yellow-s:#fdf3d3;
+  --red:#c81e1e;--red-s:#fde8e8;
+  --purple:#6c2bd9;--purple-s:#edebfe;
+  --text:#111928;--text2:#374151;--muted:#6b7280;
+  --font:'Sarabun',sans-serif;--r:12px;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.05);
+  --sh2:0 4px 20px rgba(0,0,0,.12);
+}
+.dark{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--surface3:#2a2f45;
+  --border:#2e3451;--accent:#3b82f6;--accent-s:#1e2d4f;
+  --a2:#f97316;--a2-s:#2d1f12;
+  --green:#34d399;--green-s:#0d2e1f;
+  --yellow:#fbbf24;--yellow-s:#2d220a;
+  --red:#f87171;--red-s:#2e1212;
+  --purple:#a78bfa;--purple-s:#1e1633;
+  --text:#f1f5f9;--text2:#cbd5e1;--muted:#64748b;
+  --sh:0 1px 3px rgba(0,0,0,.3),0 4px 12px rgba(0,0,0,.2);
+  --sh2:0 4px 20px rgba(0,0,0,.4);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh;transition:background .25s,color .25s}
+
+/* ── TOP BAR ── */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:9px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;top:0;z-index:200;box-shadow:var(--sh)}
+.logo{font-size:18px;font-weight:900;color:var(--accent);letter-spacing:.3px;white-space:nowrap}
+.logo em{color:var(--a2);font-style:normal}
+.period{background:var(--accent-s);color:var(--accent);padding:3px 11px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap}
+.topbar-r{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:4px;padding:6px 13px;border-radius:8px;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:opacity .15s,transform .1s;white-space:nowrap}
+.btn:hover{opacity:.85;transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-blue{background:var(--accent);color:#fff}
+.btn-green{background:var(--green);color:#fff}
+.btn-orange{background:var(--a2);color:#fff}
+.btn-out{background:var(--surface);color:var(--text2);border:1px solid var(--border)}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:7px}
+
+/* ── THEME SWITCH ── */
+.tsw{display:flex;gap:2px;background:var(--surface2);padding:3px;border-radius:8px;border:1px solid var(--border)}
+.tsw-btn{background:none;border:none;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;color:var(--muted);font-family:var(--font);transition:.15s}
+.tsw-btn.on{background:var(--surface);color:var(--accent);box-shadow:var(--sh)}
+
+/* ── MAIN ── */
+.main{padding:14px 18px;max-width:1800px;margin:0 auto}
+
+/* ── TAB BAR ── */
+.tabbar{display:flex;gap:3px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:12px;flex-wrap:wrap;border:1px solid var(--border)}
+.tabbar-btn{padding:7px 15px;border-radius:7px;background:none;border:none;font-family:var(--font);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s;white-space:nowrap}
+.tabbar-btn.on{background:var(--surface);color:var(--accent);box-shadow:var(--sh)}
+.tab{display:none}.tab.on{display:block}
+
+/* ── SECTION HEADER ── */
+.sh{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin:16px 0 10px;display:flex;align-items:center;gap:8px}
+.sh::after{content:'';flex:1;height:1px;background:var(--border)}
+.sh .cnt{background:var(--accent);color:#fff;font-size:10px;padding:1px 7px;border-radius:10px;letter-spacing:0}
+
+/* ── GRID ── */
+.g{display:grid;gap:12px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g14{grid-template-columns:1fr 1.6fr}
+@media(max-width:1200px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}.g14{grid-template-columns:1fr}}
+@media(max-width:700px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+/* ── CARD ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--sh);position:relative;overflow:hidden;transition:box-shadow .15s}
+.card:hover{box-shadow:var(--sh2)}
+.stripe{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:var(--r) 0 0 var(--r)}
+.clabel{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+
+/* ── PA HERO ── */
+.pa-num{font-size:52px;font-weight:900;line-height:1;letter-spacing:-1px}
+.pa-pct{font-size:38px;font-weight:900;padding:4px 14px;border-radius:10px;display:inline-flex;align-items:center}
+.pa-unit{font-size:14px;color:var(--muted);font-weight:500;margin-left:4px}
+.pa-track{background:var(--surface2);border-radius:6px;height:14px;overflow:hidden;margin:10px 0 5px;border:1px solid var(--border)}
+.pa-fill{height:100%;border-radius:6px;transition:width 1.1s cubic-bezier(.4,0,.2,1)}
+.pa-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+
+/* ── KPI MINI ── */
+.krow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.kbox{background:var(--surface2);border-radius:8px;padding:10px 12px;border:1px solid var(--border)}
+.klabel{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.kval{font-size:22px;font-weight:900;line-height:1.2}
+
+/* ── VS BAR ── */
+.vsbar{display:flex;height:22px;border-radius:7px;overflow:hidden;margin:6px 0}
+.vsseg{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;transition:width .8s}
+
+/* ── BREAKDOWN ROW ── */
+.brow{margin-bottom:9px}
+.brow-head{display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:3px}
+.brow-track{background:var(--surface2);border-radius:5px;height:9px;overflow:hidden;border:1px solid var(--border)}
+.brow-fill{height:100%;border-radius:5px;transition:width .9s}
+
+/* ── CHART ── */
+.cwrap{position:relative;width:100%}
+.cwrap canvas{width:100%!important}
+
+/* ── TABLE ── */
+.dt{width:100%;border-collapse:collapse;font-size:12px}
+.dt th{background:var(--surface2);color:var(--muted);font-weight:700;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0;z-index:1}
+.dt td{padding:7px 10px;border-bottom:1px solid var(--border);transition:background .1s}
+.dt tr:hover td{background:var(--surface2)}
+.dt .r{text-align:right;font-variant-numeric:tabular-nums}
+.sb{overflow-y:auto;max-height:290px}
+.sb2{overflow-y:auto;max-height:430px}
+.clickrow{cursor:pointer}
+.clickrow:hover td{background:var(--accent-s)!important}
+
+/* ── BAR INLINE ── */
+.bi{display:flex;align-items:center;gap:6px}
+.bm{flex:1;background:var(--surface2);border-radius:3px;height:5px;overflow:hidden;min-width:40px;border:1px solid var(--border)}
+.bf{height:100%;border-radius:3px}
+
+/* ── BADGE ── */
+.bdg{display:inline-block;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.b-blue{background:var(--accent-s);color:var(--accent)}
+.b-green{background:var(--green-s);color:var(--green)}
+.b-yellow{background:var(--yellow-s);color:var(--yellow)}
+.b-red{background:var(--red-s);color:var(--red)}
+.b-purple{background:var(--purple-s);color:var(--purple)}
+.b-gray{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+
+/* ── PCT CHIP ── */
+.pchip{font-size:12px;font-weight:900;padding:2px 9px;border-radius:7px}
+
+/* ── MODAL ── */
+.moverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center}
+.moverlay.open{display:flex}
+.mbox{background:var(--surface);border-radius:16px;padding:22px;max-width:760px;width:95%;max-height:82vh;overflow-y:auto;position:relative;box-shadow:var(--sh2)}
+.mtitle{font-size:16px;font-weight:800;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.mclose{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1;padding:0 3px}
+.mclose:hover{color:var(--text)}
+
+/* ── UPLOAD ── */
+.uzone{border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:.2s;margin:12px 0}
+.uzone:hover,.uzone.drag{border-color:var(--accent);background:var(--accent-s)}
+.uzone .big{font-size:38px;margin-bottom:8px}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface2)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+
+/* ── FILTER BAR ── */
+.fbar{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.fbar label{font-size:11px;color:var(--muted);font-weight:700}
+.fbar select,.fbar input{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:7px;font-family:var(--font);font-size:12px;cursor:pointer}
+.fbar select:focus,.fbar input:focus{outline:2px solid var(--accent)}
+
+/* ── FILE LOG ── */
+.flog{font-size:11px;color:var(--muted);margin-top:8px}
+.ftag{background:var(--green-s);color:var(--green);padding:2px 9px;border-radius:5px;margin:2px;display:inline-block;font-size:11px}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fu{animation:fadeUp .3s ease}
+
+/* ── SKELETON LOADER ── */
+@keyframes shimmer{0%{background-position:-700px 0}100%{background-position:700px 0}}
+.skel{background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%);background-size:700px 100%;animation:shimmer 1.4s infinite;border-radius:6px;display:block}
+.skel-num{height:52px;width:60%;margin-bottom:8px}
+.skel-bar{height:10px;width:100%;margin:8px 0}
+.skel-text{height:14px;width:80%;margin:6px 0}
+
+/* ── OVER-PA ALERT PULSE ── */
+@keyframes paBlink{0%,100%{box-shadow:0 0 0 0 rgba(200,30,30,.45)}70%{box-shadow:0 0 0 8px rgba(200,30,30,0)}}
+.pa-over-alert{border:2px solid var(--red)!important;animation:paBlink 1.6s ease infinite}
+.pa-over-alert .pa-fill{background:var(--red)!important}
+.pa-over-alert #hn-lp,.pa-over-alert #hn-bp{background:var(--red)!important}
+
+/* ── TOOLTIP ── */
+.tipwrap{position:relative;display:inline-block;width:100%}
+.tipwrap .tip{visibility:hidden;background:var(--text);color:var(--bg);text-align:center;border-radius:6px;padding:5px 10px;position:absolute;z-index:10;bottom:130%;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s}
+.tipwrap .tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--text)}
+.tipwrap:hover .tip{visibility:visible;opacity:1}
+
+/* ── BURN RATE CARD ── */
+.burn-card{background:linear-gradient(135deg,var(--yellow-s),var(--surface));border:1px solid var(--yellow);border-radius:var(--r);padding:14px 16px}
+.burn-num{font-size:28px;font-weight:900;color:var(--yellow);line-height:1}
+.burn-warn{color:var(--red);font-weight:800}
+
+/* ── DC MINI KPI ── */
+.dc-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+@media(max-width:900px){.dc-kpi-row{grid-template-columns:1fr 1fr}}
+
+/* ── TREND COMPARE ── */
+.cmp-badge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:3px}
+.cmp-up{background:var(--red-s);color:var(--red)}
+.cmp-dn{background:var(--green-s);color:var(--green)}
+.cmp-eq{background:var(--surface2);color:var(--muted)}
+
+/* ── EXPORT FILTER NOTICE ── */
+.export-notice{font-size:11px;color:var(--muted);margin-left:6px;font-style:italic}
+
+/* ── KEYBOARD HINT ── */
+.kbd{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:10px;font-family:monospace;color:var(--muted)}
+
+@media print{
+  .topbar,.fbar,.tabbar,.btn,.moverlay{display:none!important}
+  .tab{display:block!important}
+  canvas{max-width:100%;height:auto!important}
+  .pa-track{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">⛽ FLEET<em>CARD</em></div>
+  <div class="period" id="period-badge">—</div>
+  <div class="topbar-r">
+    <div class="tsw">
+      <button class="tsw-btn on" onclick="setTheme('light',this)">☀️ Light</button>
+      <button class="tsw-btn" onclick="setTheme('dark',this)">🌑 Dark</button>
+    </div>
+    <button class="btn btn-out btn-sm" onclick="doPNG()">📸 PNG</button>
+    <button class="btn btn-out btn-sm" onclick="doXlsx()">📊 Excel</button>
+    <button class="btn btn-green btn-sm" onclick="openM('m-upload')">📂 โหลดไฟล์ใหม่</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="root">
+
+  <!-- TABS -->
+  <div class="tabbar">
+    <button class="tabbar-btn on" onclick="goTab('overview',this)">📋 ภาพรวม PA</button>
+    <button class="tabbar-btn" onclick="goTab('dc',this)">🏢 รายละเอียด DC</button>
+    <button class="tabbar-btn" onclick="goTab('vehicles',this)">🚗 รายละเอียดรถ</button>
+    <button class="tabbar-btn" onclick="goTab('trend',this)">📈 เทรนด์รายวัน</button>
+    <button class="tabbar-btn" onclick="goTab('alert',this)">⚠️ แจ้งเตือน <span id="abadge" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px;display:inline-block">0</span></button>
+  </div>
+
+  <!-- ══ TAB OVERVIEW ══ -->
+  <div class="tab on" id="tab-overview">
+
+    <!-- PA HERO ROW -->
+    <div class="sh">📋 ภาพรวมการใช้น้ำมัน vs PA — ตัวชี้วัดหลัก</div>
+    <div class="g g2" style="margin-bottom:14px;align-items:stretch">
+
+      <!-- ฝั่งซ้าย: ⛽ + 💰 กึ่งกลาง โดดเด่น -->
+      <div class="card" style="padding:22px;display:flex;flex-direction:column;gap:12px">
+        <div style="text-align:center;margin-bottom:4px">
+          <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:2px">📋 ภาพรวม PA ทั้งหมด</div>
+          <div id="period-sub" style="font-size:12px;color:var(--muted)">—</div>
+        </div>
+
+        <!-- ⛽ ลิตร -->
+        <div style="background:var(--accent-s);border-radius:12px;padding:16px 20px;border:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div>
+              <div style="font-size:11px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">⛽ ลิตรที่ใช้ไป</div>
+              <div style="display:flex;align-items:baseline;gap:8px">
+                <span style="font-size:44px;font-weight:900;color:var(--accent);line-height:1;letter-spacing:-1px" id="hn-l">—</span>
+                <span style="font-size:13px;color:var(--muted);font-weight:600">ลิตร</span>
+              </div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:36px;font-weight:900;background:var(--accent);color:#fff;padding:6px 20px;border-radius:12px;line-height:1" id="hn-lp">—%</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px;font-weight:600">ของ PA</div>
+            </div>
+          </div>
+          <div class="pa-track" style="height:10px"><div class="pa-fill" id="pf-l" style="background:var(--accent);width:0%"></div></div>
+          <div class="pa-meta" style="margin-top:4px">
+            <span>PA: <strong id="pa-lt">—</strong> ล.</span>
+            <span style="color:var(--green)">คงเหลือ: <strong id="pa-lr">—</strong> ล.</span>
+          </div>
+        </div>
+
+        <!-- 💰 บาท -->
+        <div style="background:var(--a2-s);border-radius:12px;padding:16px 20px;border:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div>
+              <div style="font-size:11px;font-weight:800;color:var(--a2);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">💰 เงินที่ใช้ไป</div>
+              <div style="display:flex;align-items:baseline;gap:8px">
+                <span style="font-size:44px;font-weight:900;color:var(--a2);line-height:1;letter-spacing:-1px" id="hn-b">—</span>
+                <span style="font-size:13px;color:var(--muted);font-weight:600">บาท</span>
+              </div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:36px;font-weight:900;background:var(--a2);color:#fff;padding:6px 20px;border-radius:12px;line-height:1" id="hn-bp">—%</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px;font-weight:600">ของ PA</div>
+            </div>
+          </div>
+          <div class="pa-track" style="height:10px"><div class="pa-fill" id="pf-b" style="background:var(--a2);width:0%"></div></div>
+          <div class="pa-meta" style="margin-top:4px">
+            <span>PA: <strong id="pa-bt">—</strong> บ.</span>
+            <span style="color:var(--green)">คงเหลือ: <strong id="pa-br">—</strong> บ.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ฝั่งขวา: KPI + breakdown -->
+      <div class="card" style="padding:20px;display:flex;flex-direction:column;gap:16px">
+
+        <!-- KPI 4 ช่อง -->
+        <div>
+          <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">📊 สถิติรวม</div>
+          <div class="krow">
+            <div class="kbox"><div class="klabel">🚗 รถทั้งหมด</div><div class="kval" style="color:var(--accent)" id="k-v">—</div></div>
+            <div class="kbox"><div class="klabel">📍 DC</div><div class="kval" style="color:var(--accent)" id="k-dc">—</div></div>
+            <div class="kbox"><div class="klabel">📝 ธุรกรรม</div><div class="kval" style="color:var(--purple)" id="k-tx">—</div></div>
+            <div class="kbox"><div class="klabel">⛽ บาท/ลิตร</div><div class="kval" style="color:var(--yellow)" id="k-pr">—</div></div>
+          </div>
+        </div>
+
+        <!-- BURN RATE CARD -->
+        <div id="burn-wrap" style="display:none">
+          <div class="burn-card">
+            <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">🔥 Burn Rate — คาดการณ์</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:8px">
+              <div>
+                <div style="font-size:11px;color:var(--muted);font-weight:600">เฉลี่ย/วัน</div>
+                <div class="burn-num" id="burn-avg">—</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">ลิตร/วัน</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--muted);font-weight:600">คาดใช้สิ้นเดือน</div>
+                <div class="burn-num" id="burn-proj">—</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">ลิตร</div>
+              </div>
+              <div id="burn-status" style="text-align:right"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- แยกตามกลุ่มรถ -->
+        <div>
+          <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">🚛 แยกตามกลุ่มรถ (ลิตร)</div>
+          <div id="grp-break"></div>
+        </div>
+
+        <!-- ผปก vs บริษัท -->
+        <div>
+          <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">👤 ผปก vs บริษัท (ลิตร)</div>
+          <div id="own-break"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="g g2" style="margin-bottom:14px">
+      <div class="card">
+        <div class="clabel">📅 การใช้น้ำมันรายวัน (ลิตร)</div>
+        <div class="cwrap" style="height:190px"><canvas id="c-daily"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="clabel">🚛 สัดส่วนตามประเภทรถ (ลิตร)</div>
+        <div class="cwrap" style="height:190px"><canvas id="c-vtype"></canvas></div>
+      </div>
+    </div>
+
+    <!-- TOP DC -->
+    <div class="sh">🏆 Top DC <span class="cnt" id="dc-cnt">—</span></div>
+    <div class="g g2" style="margin-bottom:14px">
+      <div class="card">
+        <div class="clabel" style="display:flex;justify-content:space-between">
+          <span>🚚 Top DC — กระจาย</span>
+          <button class="btn btn-out btn-sm" onclick="showAllDC('กระจาย')">ดูทั้งหมด ›</button>
+        </div>
+        <div class="sb"><table class="dt" id="t-dc-gk"><thead><tr><th>#</th><th>DC</th><th class="r">ลิตร</th><th style="min-width:90px">สัดส่วน</th><th class="r">รถ</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="clabel" style="display:flex;justify-content:space-between">
+          <span>📦 Top DC — ขนย้าย</span>
+          <button class="btn btn-out btn-sm" onclick="showAllDC('ขนย้าย')">ดูทั้งหมด ›</button>
+        </div>
+        <div class="sb"><table class="dt" id="t-dc-kn"><thead><tr><th>#</th><th>DC</th><th class="r">ลิตร</th><th style="min-width:90px">สัดส่วน</th><th class="r">รถ</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- TOP PLATES -->
+    <div class="sh">🔢 Top 10 ทะเบียนตามปริมาณใช้น้ำมัน</div>
+    <div class="g g4">
+      <div class="card">
+        <div class="clabel" style="display:flex;justify-content:space-between"><span>🚗 กระจาย · ผปก</span><button class="btn btn-out btn-sm" onclick="showAllPlates('กระจาย','ผปก')">ทั้งหมด ›</button></div>
+        <div class="sb"><table class="dt" id="t-p-gk-o"><thead><tr><th>#</th><th>ทะเบียน</th><th class="r">ลิตร</th><th>%PA</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="clabel" style="display:flex;justify-content:space-between"><span>🚗 กระจาย · บริษัท</span><button class="btn btn-out btn-sm" onclick="showAllPlates('กระจาย','บริษัท')">ทั้งหมด ›</button></div>
+        <div class="sb"><table class="dt" id="t-p-gk-c"><thead><tr><th>#</th><th>ทะเบียน</th><th class="r">ลิตร</th><th>%PA</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="clabel" style="display:flex;justify-content:space-between"><span>🚛 ขนย้าย · ผปก</span><button class="btn btn-out btn-sm" onclick="showAllPlates('ขนย้าย','ผปก')">ทั้งหมด ›</button></div>
+        <div class="sb"><table class="dt" id="t-p-kn-o"><thead><tr><th>#</th><th>ทะเบียน</th><th class="r">ลิตร</th><th>%PA</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="clabel" style="display:flex;justify-content:space-between"><span>🚛 ขนย้าย · บริษัท</span><button class="btn btn-out btn-sm" onclick="showAllPlates('ขนย้าย','บริษัท')">ทั้งหมด ›</button></div>
+        <div class="sb"><table class="dt" id="t-p-kn-c"><thead><tr><th>#</th><th>ทะเบียน</th><th class="r">ลิตร</th><th>%PA</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB DC ══ -->
+  <div class="tab" id="tab-dc">
+    <div class="sh">🏢 รายละเอียดทุก DC <button class="btn btn-out btn-sm" style="margin-left:auto;letter-spacing:0;text-transform:none;font-size:11px" onclick="expDC()">⬇ Excel <span class="export-notice" id="dc-exp-notice"></span></button></div>
+    <div class="dc-kpi-row" id="dc-kpi-row"></div>
+    <div class="fbar">
+      <label>กลุ่ม:</label>
+      <select id="f-dcgrp" onchange="renderDCTab()"><option value="">ทั้งหมด</option><option>กระจาย</option><option>ขนย้าย</option></select>
+      <label>ค้นหา:</label>
+      <input id="f-dcsearch" placeholder="ชื่อ DC..." oninput="renderDCTab()" style="width:180px">
+    </div>
+    <div class="card">
+      <div class="sb2">
+        <table class="dt">
+          <thead><tr><th>#</th><th>DC</th><th>กลุ่ม</th><th class="r">ลิตร</th><th class="r">บาท</th><th class="r">รถ</th><th style="min-width:110px">% รวม</th><th></th></tr></thead>
+          <tbody id="dc-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB VEHICLES ══ -->
+  <div class="tab" id="tab-vehicles">
+    <div class="sh">🚗 รายละเอียดรถทุกคัน <button class="btn btn-out btn-sm" style="margin-left:auto;letter-spacing:0;text-transform:none;font-size:11px" onclick="expVeh()">⬇ Excel</button></div>
+    <div class="fbar">
+      <label>กลุ่ม:</label>
+      <select id="f-vgrp" onchange="renderVeh()"><option value="">ทั้งหมด</option><option>กระจาย</option><option>ขนย้าย</option></select>
+      <label>เจ้าของ:</label>
+      <select id="f-vown" onchange="renderVeh()"><option value="">ทั้งหมด</option><option>ผปก</option><option>บริษัท</option></select>
+      <label>DC:</label>
+      <select id="f-vdc" onchange="renderVeh()"><option value="">ทั้งหมด</option></select>
+      <label>%PA ≥</label>
+      <select id="f-vpct" onchange="renderVeh()">
+        <option value="0">ทั้งหมด</option><option value="50">≥ 50%</option>
+        <option value="70">≥ 70%</option><option value="90">≥ 90%</option><option value="100">เกิน PA</option>
+      </select>
+      <label>ค้นหาทะเบียน:</label>
+      <input id="f-vpl" placeholder="ทะเบียน..." oninput="renderVeh()" style="width:150px">
+    </div>
+    <div class="card">
+      <div class="sb2">
+        <table class="dt">
+          <thead><tr><th>#</th><th>ทะเบียน</th><th>กลุ่ม</th><th>DC</th><th>เจ้าของ</th><th class="r">ลิตรใช้</th><th class="r">PA ลิตร</th><th>%PA</th><th class="r">บาทใช้</th><th>สถานะ</th></tr></thead>
+          <tbody id="veh-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB TREND ══ -->
+  <div class="tab" id="tab-trend">
+    <div class="sh">📈 เทรนด์การใช้น้ำมันรายวัน</div>
+    <div class="g g2" style="margin-bottom:14px">
+      <!-- กลางซ้าย: ลิตรที่ใช้เทียบ PA กราฟแท่ง -->
+      <div class="card">
+        <div class="clabel">📊 ลิตรที่ใช้รายวัน เทียบ PA (แท่ง)</div>
+        <div class="cwrap" style="height:220px"><canvas id="c-tpa"></canvas></div>
+      </div>
+      <!-- กลางขวา: ราคาน้ำมันบาทต่อลิตร กราฟเส้น -->
+      <div class="card">
+        <div class="clabel">📉 ราคาน้ำมัน (บาท/ลิตร) รายวัน</div>
+        <div class="cwrap" style="height:220px"><canvas id="c-tprice"></canvas></div>
+      </div>
+    </div>
+    <div class="g g2" style="margin-bottom:14px">
+      <div class="card">
+        <div class="clabel">ลิตรรายวัน — กระจาย vs ขนย้าย</div>
+        <div class="cwrap" style="height:210px"><canvas id="c-tgrp"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="clabel">💰 บาทรายวัน (รวม)</div>
+        <div class="cwrap" style="height:210px"><canvas id="c-tbaht"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="clabel" style="margin-bottom:8px">📊 ตารางสรุปรายวัน</div>
+      <table class="dt">
+        <thead><tr><th>วันที่</th><th class="r">ลิตร</th><th class="r">บาท</th><th class="r">ราคา (฿/ล.)</th><th class="r">กระจาย (ล.)</th><th class="r">ขนย้าย (ล.)</th></tr></thead>
+        <tbody id="daily-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ TAB ALERT ══ -->
+  <div class="tab" id="tab-alert">
+    <div class="sh">⚠️ แจ้งเตือนการใช้น้ำมัน</div>
+    <div class="g g2" style="margin-bottom:14px">
+      <div class="card">
+        <div class="stripe" style="background:var(--red)"></div>
+        <div class="clabel">🔴 รถที่ใช้เกิน PA แล้ว</div>
+        <div style="font-size:56px;font-weight:900;color:var(--red);line-height:1" id="a-over">0</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">คัน เกินงบ PA</div>
+      </div>
+      <div class="card">
+        <div class="stripe" style="background:var(--yellow)"></div>
+        <div class="clabel">🟡 รถใกล้เกิน PA (70–100%)</div>
+        <div style="font-size:56px;font-weight:900;color:var(--yellow);line-height:1" id="a-near">0</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">คัน ต้องระวัง</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="clabel" style="color:var(--red);margin-bottom:6px">🚨 รายการที่เกิน PA</div>
+      <div class="sb">
+        <table class="dt" id="t-overpa">
+          <thead><tr><th>#</th><th>ทะเบียน</th><th>กลุ่ม</th><th>DC</th><th>เจ้าของ</th><th class="r">ใช้ (ล.)</th><th class="r">PA (ล.)</th><th class="r">เกินไป</th><th>%เกิน</th></tr></thead>
+          <tbody id="opa-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="clabel" style="color:var(--yellow);margin-bottom:6px">⚡ รายการที่ใกล้เกิน (70–100%)</div>
+      <div class="sb">
+        <table class="dt" id="t-nearpa">
+          <thead><tr><th>#</th><th>ทะเบียน</th><th>กลุ่ม</th><th>DC</th><th>เจ้าของ</th><th class="r">ใช้ (ล.)</th><th class="r">PA (ล.)</th><th>%PA</th></tr></thead>
+          <tbody id="npa-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ══ MODALS ══ -->
+<div class="moverlay" id="m-upload">
+  <div class="mbox">
+    <div class="mtitle">📂 อัปโหลดไฟล์ข้อมูลใหม่ <button class="mclose" onclick="closeM('m-upload')">✕</button></div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:4px">Dashboard อัปเดตทันที · ถ้าวันที่ซ้ำจะยึดไฟล์ใหม่เสมอ</p>
+    <div class="uzone" id="uzone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="doDrop(event)" onclick="document.getElementById('finput').click()">
+      <div class="big">📁</div>
+      <p style="font-weight:700;font-size:14px">ลากไฟล์มาวางที่นี่ หรือคลิกเลือก</p>
+      <small style="color:var(--muted)">รองรับ .xlsx · คอลัมน์: วันที่, ปริมาณ(ลิตร), จำนวนเงิน, ราคาน้ำมัน, ทะเบียน, วงเงิน บาท, วงเงิน ลิตร, กลุ่มรถ, สังกัด DC, ประเภทรถ, ผปก/บริษัท</small>
+      <input type="file" id="finput" accept=".xlsx,.xls" style="display:none" onchange="onFile(event)">
+    </div>
+    <div id="ustatus" style="font-size:12px;color:var(--muted);text-align:center;min-height:16px"></div>
+    <div class="flog">ไฟล์ที่โหลดแล้ว: <span id="flist">—</span></div>
+  </div>
+</div>
+
+<div class="moverlay" id="m-detail">
+  <div class="mbox">
+    <div class="mtitle">
+      <span id="m-dtitle">—</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn btn-out btn-sm" onclick="expModal()">⬇ Excel</button>
+        <button class="mclose" onclick="closeM('m-detail')">✕</button>
+      </div>
+    </div>
+    <div id="m-dbody"></div>
+  </div>
+</div>
+
+<script>
+// ════════ DATA ════════
+const INIT = {"period":"01/06/2569 – 11/06/2569","total_liters":162887.0,"total_baht":6687004.7,"pa_liters":501606.0,"pa_baht":20703881.6,"vehicles":585,"dcs":60,"transactions":5125,"avg_price":41.06,"by_group":[["กระจาย",100251.1,4115566.0],["ขนย้าย",62635.9,2571438.7]],"by_owner":[["ผปก",118439.3,4853170.5],["บริษัท",44447.7,1833834.2]],"by_vtype":[["รถควบคุมอุณหภูมิ4W",73049.4],["รถปิกอัพ",52030.5],["รถ 10 ล้อ Container",14481.4],["รถควบคุมอุณหภูมิ6W",11841.0],["รถ 6 ล้อ ตู้ Container",7591.3],["รถควบคุมอุณหภูมิ10W",3280.0],["รถควบคุมอุณหภูมิ4WJ",400.0],["รถ 4 ล้อกลาง",213.4]],"daily":[["01/06/2569",17527.2,714889.0],["02/06/2569",16247.0,662281.0],["03/06/2569",15742.3,640828.0],["04/06/2569",15374.9,636472.6],["05/06/2569",15915.9,662170.9],["06/06/2569",12796.6,524366.2],["07/06/2569",3998.3,162990.8],["08/06/2569",16693.7,682066.8],["09/06/2569",16128.8,666081.5],["10/06/2569",16928.5,698884.2],["11/06/2569",15534.0,635973.6]],"daily_price":[40.8,40.8,40.7,41.4,41.6,41.0,40.7,40.8,41.3,41.3,40.9],"daily_grp":[["01/06/2569","กระจาย",11137.8],["01/06/2569","ขนย้าย",6389.4],["02/06/2569","กระจาย",10181.5],["02/06/2569","ขนย้าย",6065.5],["03/06/2569","กระจาย",9853.1],["03/06/2569","ขนย้าย",5889.2],["04/06/2569","กระจาย",9770.7],["04/06/2569","ขนย้าย",5604.2],["05/06/2569","กระจาย",9777.0],["05/06/2569","ขนย้าย",6138.8],["06/06/2569","กระจาย",9314.1],["06/06/2569","ขนย้าย",3482.5],["07/06/2569","กระจาย",1093.4],["07/06/2569","ขนย้าย",2904.9],["08/06/2569","กระจาย",10326.0],["08/06/2569","ขนย้าย",6367.7],["09/06/2569","กระจาย",9348.6],["09/06/2569","ขนย้าย",6780.2],["10/06/2569","กระจาย",10250.8],["10/06/2569","ขนย้าย",6677.7],["11/06/2569","กระจาย",9198.2],["11/06/2569","ขนย้าย",6335.8]],"dc_summary":[["691 CDC บางนา","ขนย้าย",34183.0,1405715.8,37],["691 CDC บางนา","กระจาย",12689.7,518257.7,76],["610 DC พุทธมณฑลสาย 3","กระจาย",9499.9,385439.3,58],["621 DC รังสิต","กระจาย",4114.5,166156.0,28],["490 DC หาดใหญ่","กระจาย",3642.9,150635.8,18],["150 DC เชียงใหม่","กระจาย",3366.7,140568.8,20],["320 DC ชลบุรี","กระจาย",3332.0,136744.3,14],["230 DC โคราช","กระจาย",3022.7,124899.4,12],["240 DC ขอนแก่น","กระจาย",2991.3,124039.3,11],["150 DC เชียงใหม่","ขนย้าย",2718.0,108849.9,7],["322 DC จันทบุรี","ขนย้าย",2382.6,98406.9,3],["157 DC เชียงราย","กระจาย",2310.7,96629.8,11],["240 DC ขอนแก่น","ขนย้าย",2238.4,92593.4,4],["247 DC สกลนคร","ขนย้าย",2140.4,88562.3,4],["486 DC ชุมพร","กระจาย",2109.0,87520.1,7],["481 DC นครศรีธรรมราช","กระจาย",1969.9,77350.1,9],["241 DC อุดรธานี","กระจาย",1925.0,80078.0,7],["484 DC สุราษฎร์","กระจาย",1858.1,72910.8,9],["483 DC ภูเก็ต","ขนย้าย",1839.5,75950.0,3],["160 DC นครสวรรค์","กระจาย",1745.3,72080.1,7],["245 DC ร้อยเอ็ด","กระจาย",1744.4,72529.7,6],["618 DC สระบุรี","กระจาย",1708.0,70337.6,7],["631 DC อยุธยา","กระจาย",1692.3,69600.5,7],["476 DC ชะอำ","กระจาย",1595.5,65805.5,6],["234 DC อุบลราชธานี","กระจาย",1591.4,66179.6,7],["321 DC ระยอง","กระจาย",1573.5,64697.5,8],["610 DC พุทธมณฑลสาย 3","ขนย้าย",1570.0,64952.1,1],["163 DC ตาก","กระจาย",1553.7,64390.9,7],["323 DC พัทยา","กระจาย",1542.3,63312.7,9],["322 DC จันทบุรี","กระจาย",1525.7,62778.9,8],["672 DC สุพรรณบุรี","กระจาย",1509.3,60596.4,4],["167 DC เพชรบูรณ์","กระจาย",1482.2,61275.2,6],["247 DC สกลนคร","กระจาย",1481.6,61708.7,7],["248 DC นครพนม","กระจาย",1460.4,60878.1,5],["234 DC อุบลราชธานี","ขนย้าย",1419.1,58793.4,2],["670 DC ราชบุรี","กระจาย",1357.5,54165.0,6],["152 DC ลำปาง","กระจาย",1311.9,54597.5,5],["325 DC ปราจีนบุรี","กระจาย",1288.0,53145.9,5],["243 DC หนองคาย","กระจาย",1264.0,52664.0,6],["483 DC ภูเก็ต","กระจาย",1262.6,52412.8,10],["233 DC ศรีสะเกษ","กระจาย",1257.1,52306.5,4],["484 DC สุราษฎร์","ขนย้าย",1213.7,50069.8,1],["248 DC นครพนม","ขนย้าย",1110.9,43809.9,2],["480 DC ทุ่งสง","ขนย้าย",1107.1,45538.8,3],["231 DC บุรีรัมย์","กระจาย",1089.2,45114.8,4],["151 DC ลำพูน","กระจาย",1053.3,43941.4,5],["155 DC น่าน","ขนย้าย",1046.9,40756.6,3],["246 DC กาฬสินธุ์","กระจาย",1025.9,42635.8,5],["236 DC ชัยภูมิ","กระจาย",1025.8,42444.5,3],["156 DC พะเยา","กระจาย",931.4,38953.8,4],["154 DC แพร่","กระจาย",832.4,34618.3,4],["164 DC สุโขทัย","ขนย้าย",831.7,34360.7,2],["165 DC พิษณุโลก","กระจาย",786.2,30814.4,5],["624 DC ฉะเชิงเทรา","กระจาย",762.3,31335.1,3],["232 DC สุรินทร์","กระจาย",757.1,31457.4,3],["243 DC หนองคาย","ขนย้าย",726.2,30037.4,1],["249 DC มุกดาหาร","ขนย้าย",719.1,29773.1,1],["493 DC พัทลุง","กระจาย",710.0,29379.9,3],["170 DC ชัยนาท","กระจาย",707.0,29190.5,3],["482 DC พังงา","กระจาย",702.1,29143.0,3],["249 DC มุกดาหาร","กระจาย",698.9,29155.3,3],["166 DC พิจิตร","กระจาย",692.0,28618.3,3],["487 DC กระบี่","กระจาย",690.0,24826.2,3],["241 DC อุดรธานี","ขนย้าย",636.6,26341.4,1],["235 DC ยโสธร","ขนย้าย",634.0,26286.8,1],["673 DC นครปฐม","กระจาย",619.0,25446.3,3],["235 DC ยโสธร","กระจาย",598.4,24903.8,3],["320 DC ชลบุรี","ขนย้าย",595.1,24413.0,2],["671 DC กาญจนบุรี","กระจาย",583.5,24078.9,3],["321 DC ระยอง","ขนย้าย",547.0,22449.0,1],["153 DC อุตรดิตถ์","ขนย้าย",534.0,22067.8,1],["251 DC ปากช่อง","กระจาย",522.0,21537.9,2],["674 DC สมุทรสาคร","กระจาย",508.9,20906.0,3],["615 DC ลพบุรี","กระจาย",497.9,20500.0,2],["480 DC ทุ่งสง","กระจาย",450.0,18667.8,2],["153 DC อุตรดิตถ์","กระจาย",438.0,18209.6,2],["231 DC บุรีรัมย์","ขนย้าย",434.0,17947.0,1],["325 DC ปราจีนบุรี","ขนย้าย",433.1,17847.8,1],["163 DC ตาก","ขนย้าย",408.6,16866.0,1],["615 DC ลพบุรี","ขนย้าย",394.0,16132.0,2],["618 DC สระบุรี","ขนย้าย",382.5,15682.2,1],["671 DC กาญจนบุรี","ขนย้าย",362.0,14919.7,1],["155 DC น่าน","กระจาย",335.1,13994.4,2],["232 DC สุรินทร์","ขนย้าย",324.1,13450.0,1],["624 DC ฉะเชิงเทรา","ขนย้าย",304.4,12500.0,1],["487 DC กระบี่","ขนย้าย",296.8,10767.5,1],["323 DC พัทยา","ขนย้าย",290.0,11906.1,1],["158 DC แม่ฮ่องสอน","ขนย้าย",279.0,11652.3,1],["171 DC แม่สาย","กระจาย",238.7,10000.0,2],["164 DC สุโขทัย","กระจาย",216.8,9000.0,1],["171 DC แม่สาย","ขนย้าย",180.0,7438.0,1],["170 DC ชัยนาท","ขนย้าย",173.2,7102.0,1],["167 DC เพชรบูรณ์","ขนย้าย",169.1,7000.0,1],["673 DC นครปฐม","ขนย้าย",12.0,500.0,1]],"top_gk_own":[["3ฒฌ-47",430.0,35.8,"240 DC ขอนแก่น"],["2ฒฮ-7661",400.0,44.4,"481 DC นครศรีธรรมราช"],["3ฒฆ-3124",400.0,33.3,"167 DC เพชรบูรณ์"],["1ฒฮ-3179",378.0,31.5,"240 DC ขอนแก่น"],["3ฒว-3874",370.0,46.2,"490 DC หาดใหญ่"],["ยบ-4643",355.0,54.8,"230 DC โคราช"],["3ฒฌ-7563",350.7,39.0,"484 DC สุราษฎร์"],["3ฒฐ-6154",337.0,35.1,"243 DC หนองคาย"],["3ฒฐ-6079",336.8,37.4,"490 DC หาดใหญ่"],["1ฒฬ-688",336.2,37.4,"230 DC โคราช"]],"top_gk_co":[["3ฒก-2774",592.3,74.0,"672 DC สุพรรณบุรี"],["3ฒฌ-7561",486.0,48.6,"486 DC ชุมพร"],["3ฒฆ-3053",405.9,50.7,"236 DC ชัยภูมิ"],["2ฒฮ-7768",394.3,56.3,"160 DC นครสวรรค์"],["3ฒข-1341",391.3,43.5,"476 DC ชะอำ"],["3ฒธ-3529",385.0,55.0,"160 DC นครสวรรค์"],["3ฒฆ-3117",373.4,37.3,"248 DC นครพนม"],["3ฒฐ-6817",369.9,41.1,"236 DC ชัยภูมิ"],["2ฒฮ-7731",368.0,40.9,"672 DC สุพรรณบุรี"],["3ฒฌ-7536",356.0,44.5,"163 DC ตาก"]],"top_kn_own":[["71-2974",1730.0,41.2,"691 CDC บางนา"],["70-4896",1715.0,44.0,"691 CDC บางนา"],["67-8158",1625.0,42.8,"691 CDC บางนา"],["70-4386",1570.0,37.4,"610 DC พุทธมณฑลสาย 3"],["70-4473",1550.0,36.9,"691 CDC บางนา"],["67-6277",1515.0,39.9,"691 CDC บางนา"],["67-6276",1487.0,39.1,"691 CDC บางนา"],["67-6279",1485.0,39.1,"691 CDC บางนา"],["67-8160",1468.0,38.6,"691 CDC บางนา"],["68-9200",1434.0,37.7,"691 CDC บางนา"]],"top_kn_co":[["65-1323",700.0,46.7,"691 CDC บางนา"],["65-1326",500.0,33.3,"691 CDC บางนา"],["3ฒว-2894",434.0,45.2,"231 DC บุรีรัมย์"],["3ฒฌ-31",324.1,36.0,"232 DC สุรินทร์"],["65-1325",300.0,20.0,"691 CDC บางนา"]],"all_vehicles":[["71-2974","ขนย้าย","691 CDC บางนา","ผปก",1730.0,4200.0,41.2,71184.2,173040.0],["70-4896","ขนย้าย","691 CDC บางนา","ผปก",1715.0,3900.0,44.0,70644.3,160680.0],["67-8158","ขนย้าย","691 CDC บางนา","ผปก",1625.0,3800.0,42.8,67398.6,156560.0],["70-4386","ขนย้าย","610 DC พุทธมณฑลสาย 3","ผปก",1570.0,4200.0,37.4,64952.1,173040.0],["70-4473","ขนย้าย","691 CDC บางนา","ผปก",1550.0,4200.0,36.9,64123.5,173040.0],["67-6277","ขนย้าย","691 CDC บางนา","ผปก",1515.0,3800.0,39.9,62825.7,156560.0],["67-6276","ขนย้าย","691 CDC บางนา","ผปก",1487.0,3800.0,39.1,61460.0,156560.0],["67-6279","ขนย้าย","691 CDC บางนา","ผปก",1485.0,3800.0,39.1,60924.3,156560.0],["67-8160","ขนย้าย","691 CDC บางนา","ผปก",1468.0,3800.0,38.6,60230.4,156560.0],["68-9200","ขนย้าย","691 CDC บางนา","ผปก",1434.0,3800.0,37.7,59098.0,156560.0],["67-8159","ขนย้าย","691 CDC บางนา","ผปก",1417.0,3800.0,37.3,58565.7,156560.0],["68-9205","ขนย้าย","691 CDC บางนา","ผปก",1410.0,3800.0,37.1,58191.1,156560.0],["70-5028","ขนย้าย","691 CDC บางนา","ผปก",1400.0,3900.0,35.9,57713.6,160680.0],["71-0355","ขนย้าย","691 CDC บางนา","ผปก",1381.7,4200.0,32.9,57000.0,173040.0],["64-4408","ขนย้าย","691 CDC บางนา","ผปก",1368.7,3600.0,38.0,56263.2,144000.0],["70-7812","ขนย้าย","484 DC สุราษฎร์","ผปก",1213.7,3600.0,33.7,50069.8,144000.0],["70-4893","ขนย้าย","691 CDC บางนา","ผปก",1200.0,3600.0,33.3,49241.0,144000.0],["70-4892","ขนย้าย","691 CDC บางนา","ผปก",1192.8,3900.0,30.6,49290.4,160680.0],["3ฒว-3911","ขนย้าย","322 DC จันทบุรี","ผปก",1004.0,2200.0,45.6,41512.6,90640.0],["70-5911","ขนย้าย","691 CDC บางนา","ผปก",940.0,4200.0,22.4,38885.2,173040.0],["71-2785","ขนย้าย","691 CDC บางนา","ผปก",910.6,2800.0,32.5,37318.3,115360.0],["3ฒว-6332","ขนย้าย","322 DC จันทบุรี","ผปก",864.6,2200.0,39.3,35753.8,90640.0],["3ฒว-6340","ขนย้าย","691 CDC บางนา","ผปก",800.0,2200.0,36.4,33073.1,90640.0],["70-4895","ขนย้าย","240 DC ขอนแก่น","ผปก",800.0,3600.0,22.2,33036.0,144000.0],["70-1443","ขนย้าย","150 DC เชียงใหม่","ผปก",750.0,1920.0,39.1,27225.0,76800.0],["71-1759","ขนย้าย","691 CDC บางนา","ผปก",737.0,2800.0,26.3,30549.8,115360.0],["3ฒว-3952","ขนย้าย","234 DC อุบลราชธานี","ผปก",732.1,1800.0,40.7,30306.1,74160.0],["3ฒฆ-3133","ขนย้าย","243 DC หนองคาย","ผปก",726.2,1700.0,42.7,30037.4,70040.0],["3ฒธ-3907","ขนย้าย","248 DC นครพนม","ผปก",720.0,1400.0,51.4,27697.5,57680.0],["71-2490","ขนย้าย","150 DC เชียงใหม่","ผปก",720.0,1920.0,37.5,29618.0,76800.0],["3ฒญ-393","ขนย้าย","249 DC มุกดาหาร","ผปก",719.1,1536.0,46.8,29773.1,63283.2],["3ฒว-6334","ขนย้าย","483 DC ภูเก็ต","ผปก",718.3,1750.0,41.0,29633.3,72100.0],["71-1785","ขนย้าย","691 CDC บางนา","ผปก",706.0,3200.0,22.1,29103.4,131840.0],["65-1323","ขนย้าย","691 CDC บางนา","บริษัท",700.0,1500.0,46.7,28774.0,61800.0],["3ฒฆ-3055","ขนย้าย","234 DC อุบลราชธานี","ผปก",687.0,1800.0,38.2,28487.3,74160.0],["3ฒญ-433","ขนย้าย","247 DC สกลนคร","ผปก",661.0,1700.0,38.9,27381.1,70040.0],["71-2043","ขนย้าย","691 CDC บางนา","ผปก",650.0,2800.0,23.2,26832.0,115360.0],["71-2614","ขนย้าย","691 CDC บางนา","ผปก",650.0,2800.0,23.2,26845.0,115360.0],["3ฒฐ-6090","ขนย้าย","241 DC อุดรธานี","ผปก",636.6,1440.0,44.2,26341.4,59328.0],["3ฒฌ-7550","ขนย้าย","235 DC ยโสธร","ผปก",634.0,1600.0,39.6,26286.8,65920.0],["3ฒก-2817","ขนย้าย","247 DC สกลนคร","ผปก",631.0,1500.0,42.1,26158.2,61800.0],["3ฒว-6328","ขนย้าย","483 DC ภูเก็ต","ผปก",620.0,1700.0,36.5,25567.2,70040.0],["70-8307","ขนย้าย","240 DC ขอนแก่น","ผปก",600.0,3600.0,16.7,24910.0,144000.0],["3ฒก-2774","กระจาย","672 DC สุพรรณบุรี","บริษัท",592.3,800.0,74.0,23094.2,32960.0],["3ฒห-9389","ขนย้าย","691 CDC บางนา","ผปก",569.1,1500.0,37.9,23573.6,61800.0],["3ฒว-3869","ขนย้าย","321 DC ระยอง","ผปก",547.0,1250.0,43.8,22449.0,51500.0],["3ฒฆ-3026","ขนย้าย","153 DC อุตรดิตถ์","ผปก",534.0,1250.0,42.7,22067.8,51500.0],["3ฒก-2811","ขนย้าย","322 DC จันทบุรี","ผปก",514.0,1350.0,38.1,21140.6,55620.0],["3ฒฆ-3043","ขนย้าย","483 DC ภูเก็ต","ผปก",501.2,1150.0,43.6,20749.5,47380.0],["65-1326","ขนย้าย","691 CDC บางนา","บริษัท",500.0,1500.0,33.3,20556.0,61800.0],["3ฒฌ-7561","กระจาย","486 DC ชุมพร","บริษัท",486.0,1000.0,48.6,20173.0,41200.0],["3ฒช-9984","ขนย้าย","240 DC ขอนแก่น","ผปก",484.4,1400.0,34.6,20020.0,57680.0],["3ฒญ-376","ขนย้าย","480 DC ทุ่งสง","ผปก",481.0,1200.0,40.1,19890.5,49440.0],["700-5357","ขนย้าย","691 CDC บางนา","ผปก",480.0,3200.0,15.0,19656.0,131840.0],["3ฒฒ-2880","ขนย้าย","247 DC สกลนคร","ผปก",465.4,1152.0,40.4,19200.0,47462.4],["3ฒฆ-3036","ขนย้าย","164 DC สุโขทัย","ผปก",461.0,1200.0,38.4,19044.3,49440.0],["3ฒว-6326","ขนย้าย","150 DC เชียงใหม่","ผปก",457.0,1200.0,38.1,18928.9,49440.0],["3ฒว-6324","ขนย้าย","691 CDC บางนา","ผปก",440.0,1200.0,36.7,18262.1,49440.0],["3ฒฆ-3075","ขนย้าย","155 DC น่าน","ผปก",437.9,1152.0,38.0,18200.0,47462.4],["3ฒว-2894","ขนย้าย","231 DC บุรีรัมย์","บริษัท",434.0,960.0,45.2,17947.0,39552.0],["3ฒญ-373","ขนย้าย","325 DC ปราจีนบุรี","ผปก",433.1,1100.0,39.4,17847.8,45320.0],["3ฒฌ-47","กระจาย","240 DC ขอนแก่น","ผปก",430.0,1200.0,35.8,17832.2,49440.0],["3ฒห-9388","ขนย้าย","691 CDC บางนา","ผปก",428.0,1300.0,32.9,15303.6,53560.0],["70-1353","ขนย้าย","155 DC น่าน","ผปก",420.0,1300.0,32.3,15236.2,53560.0],["3ฒญ-370","ขนย้าย","163 DC ตาก","ผปก",408.6,1200.0,34.1,16866.0,49440.0],["3ฒฆ-3053","กระจาย","236 DC ชัยภูมิ","บริษัท",405.9,800.0,50.7,16800.0,32960.0],["2ฒฮ-7661","กระจาย","481 DC นครศรีธรรมราช","ผปก",400.0,900.0,44.4,14678.1,37080.0],["3ฒฆ-3124","กระจาย","167 DC เพชรบูรณ์","ผปก",400.0,1200.0,33.3,16513.2,50640.0],["3ฒส-2096","ขนย้าย","691 CDC บางนา","ผปก",400.0,1100.0,36.4,16544.0,45320.0],["2ฒฮ-7768","กระจาย","160 DC นครสวรรค์","บริษัท",394.3,700.0,56.3,16312.7,28840.0],["3ฒข-1341","กระจาย","476 DC ชะอำ","บริษัท",391.3,900.0,43.5,16163.9,37080.0],["3ฒว-3914","ขนย้าย","248 DC นครพนม","ผปก",390.9,850.0,46.0,16112.4,35020.0],["3ฒธ-3529","กระจาย","160 DC นครสวรรค์","บริษัท",385.0,700.0,55.0,15895.0,28840.0],["3ฒฆ-3130","ขนย้าย","247 DC สกลนคร","ผปก",383.0,1000.0,38.3,15823.0,41200.0],["3ฒฆ-3104","ขนย้าย","618 DC สระบุรี","ผปก",382.5,864.0,44.3,15682.2,35596.8],["1ฒฮ-3179","กระจาย","240 DC ขอนแก่น","ผปก",378.0,1200.0,31.5,15711.6,49440.0],["3ฒฆ-3117","กระจาย","248 DC นครพนม","บริษัท",373.4,1000.0,37.3,15600.9,41200.0],["3ฒญ-407","ขนย้าย","164 DC สุโขทัย","ผปก",370.7,1200.0,30.9,15316.4,49440.0],["3ฒว-3874","กระจาย","490 DC หาดใหญ่","ผปก",370.0,800.0,46.2,15310.4,33760.0],["3ฒฐ-6817","กระจาย","236 DC ชัยภูมิ","บริษัท",369.9,900.0,41.1,15300.0,37080.0],["2ฒฮ-7731","กระจาย","672 DC สุพรรณบุรี","บริษัท",368.0,900.0,40.9,14930.0,37980.0],["3ฒฒ-2864","ขนย้าย","671 DC กาญจนบุรี","ผปก",362.0,800.0,45.2,14919.7,32960.0],["3ฒฌ-7536","กระจาย","163 DC ตาก","บริษัท",356.0,800.0,44.5,14782.9,32960.0],["3ฒฌ-7537","กระจาย","631 DC อยุธยา","บริษัท",355.3,800.0,44.4,14629.0,32960.0],["3ฒฆ-3127","กระจาย","691 CDC บางนา","บริษัท",355.0,400.0,88.8,14566.8,16480.0],["ยบ-4643","กระจาย","230 DC โคราช","ผปก",355.0,648.0,54.8,14663.2,25920.0],["70-5231","ขนย้าย","240 DC ขอนแก่น","ผปก",354.0,1300.0,27.2,14627.4,53560.0],["3ฒฌ-7539","กระจาย","631 DC อยุธยา","บริษัท",352.5,900.0,39.2,14488.3,37080.0],["3ฒฌ-7563","กระจาย","484 DC สุราษฎร์","ผปก",350.7,900.0,39.0,14500.0,37080.0],["3ฒฐ-6215","กระจาย","241 DC อุดรธานี","บริษัท",349.6,900.0,38.8,14529.5,37980.0],["3ฒฌ-576","กระจาย","618 DC สระบุรี","บริษัท",349.0,900.0,38.8,14364.8,37080.0],["3ฒว-2908","กระจาย","233 DC ศรีสะเกษ","บริษัท",348.0,800.0,43.5,14494.6,32960.0],["3ฒว-3872","ขนย้าย","691 CDC บางนา","ผปก",348.0,900.0,38.7,14368.7,37080.0],["3ฒฌ-7529","ขนย้าย","480 DC ทุ่งสง","ผปก",345.0,1000.0,34.5,13991.2,41200.0],["70-5208","ขนย้าย","691 CDC บางนา","ผปก",340.0,3000.0,11.3,14084.5,123600.0],["1ฒฬ-6491","กระจาย","241 DC อุดรธานี","บริษัท",339.0,800.0,42.4,14116.4,32960.0],["3ฒฐ-6251","กระจาย","486 DC ชุมพร","บริษัท",338.0,800.0,42.2,14029.5,32960.0],["3ฒฐ-6154","กระจาย","243 DC หนองคาย","ผปก",337.0,960.0,35.1,14039.7,39552.0],["3ฒฐ-6079","กระจาย","490 DC หาดใหญ่","ผปก",336.8,900.0,37.4,13930.2,37980.0],["1ฒฬ-688","กระจาย","230 DC โคราช","ผปก",336.2,900.0,37.4,13900.0,37080.0],["3ฒฐ-6182","กระจาย","160 DC นครสวรรค์","บริษัท",333.0,1000.0,33.3,13756.7,42200.0],["3ฒธ-2601","กระจาย","618 DC สระบุรี","บริษัท",333.0,1000.0,33.3,13709.7,41200.0],["1ฒฬ-706","กระจาย","167 DC เพชรบูรณ์","ผปก",330.0,1000.0,33.0,13638.0,41200.0],["2ฒช-7566","กระจาย","480 DC ทุ่งสง","ผปก",330.0,700.0,47.1,13692.6,29540.0],["3ฒข-1328","กระจาย","230 DC โคราช","ผปก",330.0,800.0,41.2,13639.2,32960.0],["3ฒว-3904","กระจาย","691 CDC บางนา","ผปก",330.0,700.0,47.1,13543.5,29540.0],["3ฒว-2897","กระจาย","486 DC ชุมพร","บริษัท",326.0,1100.0,29.6,13487.4,45320.0],["3ฒฌ-31","ขนย้าย","232 DC สุรินทร์","บริษัท",324.1,900.0,36.0,13450.0,37080.0],["3ฒธ-1956","กระจาย","691 CDC บางนา","บริษัท",322.0,800.0,40.2,13220.7,32960.0],["บพ-1547","กระจาย","325 DC ปราจีนบุรี","ผปก",322.0,800.0,40.2,13290.1,32960.0],["1ฒฬ-703","กระจาย","160 DC นครสวรรค์","ผปก",321.7,900.0,35.7,13281.2,37080.0],["3ฒข-1281","กระจาย","165 DC พิษณุโลก","บริษัท",320.0,700.0,45.7,13255.8,28840.0],["3ฒฒ-2852","กระจาย","156 DC พะเยา","บริษัท",320.0,800.0,40.0,13380.6,33760.0],["3ฒว-2886","กระจาย","320 DC ชลบุรี","บริษัท",320.0,800.0,40.0,13127.9,32960.0],["3ฒว-3917","กระจาย","248 DC นครพนม","ผปก",320.0,400.0,80.0,13295.2,16480.0],["2ฒช-7383","กระจาย","233 DC ศรีสะเกษ","บริษัท",317.6,800.0,39.7,13212.3,32960.0],["3ฒฐ-6126","กระจาย","486 DC ชุมพร","บริษัท",314.0,800.0,39.2,13059.4,32960.0],["1ฒฬ-687","กระจาย","618 DC สระบุรี","ผปก",313.0,600.0,52.2,12902.0,25320.0],["3ฒข-1317","กระจาย","490 DC หาดใหญ่","ผปก",310.2,1000.0,31.0,12828.7,41200.0],["3ฒข-1325","กระจาย","245 DC ร้อยเอ็ด","บริษัท",310.0,700.0,44.3,12888.5,29540.0],["3ฒฌ-7552","กระจาย","231 DC บุรีรัมย์","บริษัท",310.0,900.0,34.4,12832.2,37080.0],["3ฒข-1260","กระจาย","152 DC ลำปาง","บริษัท",308.0,1000.0,30.8,12806.9,41200.0],["2ฒช-7377","กระจาย","241 DC อุดรธานี","ผปก",307.0,800.0,38.4,12772.0,32960.0],["3ฒว-3892","ขนย้าย","320 DC ชลบุรี","ผปก",305.1,864.0,35.3,12541.8,35596.8],["2ฒฮ-7726","กระจาย","231 DC บุรีรัมย์","ผปก",305.0,800.0,38.1,12634.6,32960.0],["1ฒฬ-6502","กระจาย","245 DC ร้อยเอ็ด","บริษัท",304.4,700.0,43.5,12651.8,28840.0],["3ฒฆ-3047","ขนย้าย","624 DC ฉะเชิงเทรา","ผปก",304.4,800.0,38.0,12500.0,32960.0],["3ฒญ-861","กระจาย","248 DC นครพนม","ผปก",304.0,800.0,38.0,12689.1,32960.0],["3ฒฐ-6094","กระจาย","320 DC ชลบุรี","บริษัท",301.9,600.0,50.3,12396.0,24720.0],["3ฒฒ-2813","กระจาย","233 DC ศรีสะเกษ","บริษัท",301.5,800.0,37.7,12542.1,32960.0],["3ฒฆ-3114","กระจาย","249 DC มุกดาหาร","ผปก",300.0,800.0,37.5,12525.0,32960.0],["3ฒช-7729","กระจาย","621 DC รังสิต","ผปก",300.0,800.0,37.5,12331.2,32960.0],["3ฒฌ-3667","กระจาย","476 DC ชะอำ","บริษัท",300.0,700.0,42.9,12348.4,28840.0],["3ฒฐ-6150","กระจาย","245 DC ร้อยเอ็ด","บริษัท",300.0,800.0,37.5,12466.8,32960.0],["3ฒฒ-2841","กระจาย","670 DC ราชบุรี","บริษัท",300.0,553.0,54.2,12350.1,22120.0],["3ฒห-9384","ขนย้าย","691 CDC บางนา","ผปก",300.0,700.0,42.9,10683.0,28840.0],["65-1325","ขนย้าย","691 CDC บางนา","บริษัท",300.0,1500.0,20.0,12292.0,61800.0],["72-5228","ขนย้าย","691 CDC บางนา","ผปก",300.0,1200.0,25.0,12330.0,49440.0],["ผก-359","กระจาย","152 DC ลำปาง","ผปก",300.0,800.0,37.5,12483.0,32960.0],["ผอ-5239","กระจาย","240 DC ขอนแก่น","ผปก",300.0,800.0,37.5,12435.0,32960.0],["3ฒฌ-7553","กระจาย","631 DC อยุธยา","บริษัท",299.1,800.0,37.4,12310.0,32960.0],["3ฒญ-380","กระจาย","235 DC ยโสธร","บริษัท",298.4,800.0,37.3,12415.3,32960.0],["3ฒฒ-2874","กระจาย","476 DC ชะอำ","ผปก",297.4,1200.0,24.8,12261.7,50640.0],["3ฒฆ-3077","ขนย้าย","487 DC กระบี่","ผปก",296.8,800.0,37.1,10767.5,32960.0],["3ฒข-1318","กระจาย","671 DC กาญจนบุรี","ผปก",295.0,800.0,36.9,12178.9,32960.0],["3ฒฐ-6820","กระจาย","320 DC ชลบุรี","ผปก",295.0,700.0,42.1,12119.9,29540.0],["3ฒธ-1017","กระจาย","674 DC สมุทรสาคร","บริษัท",294.4,800.0,36.8,12086.0,32960.0],["3ฒฆ-3103","กระจาย","615 DC ลพบุรี","บริษัท",293.8,800.0,36.7,12100.0,32960.0],["3ฒญ-360","กระจาย","320 DC ชลบุรี","บริษัท",293.0,1000.0,29.3,12029.4,41200.0],["3ฒฐ-6119","กระจาย","234 DC อุบลราชธานี","บริษัท",292.4,1000.0,29.2,12159.0,41200.0],["3ฒก-2894","กระจาย","691 CDC บางนา","ผปก",291.5,700.0,41.6,11966.5,29540.0],["1ฒส-5249","กระจาย","234 DC อุบลราชธานี","ผปก",290.0,800.0,36.2,12044.1,32960.0],["3ฒข-1276","ขนย้าย","320 DC ชลบุรี","ผปก",290.0,800.0,36.2,11871.2,32960.0],["3ฒฆ-3107","กระจาย","245 DC ร้อยเอ็ด","บริษัท",290.0,665.0,43.6,12069.7,26600.0],["3ฒฆ-3140","กระจาย","233 DC ศรีสะเกษ","ผปก",290.0,930.0,31.2,12057.5,38316.0],["3ฒว-6344","ขนย้าย","323 DC พัทยา","ผปก",290.0,800.0,36.2,11906.1,32960.0],["3ฒธ-1059","กระจาย","672 DC สุพรรณบุรี","บริษัท",289.0,900.0,32.1,11873.5,37080.0],["1ฒฬ-6499","กระจาย","230 DC โคราช","ผปก",288.0,800.0,36.0,11900.0,32960.0],["3ฒข-1308","กระจาย","152 DC ลำปาง","ผปก",288.0,800.0,36.0,12009.1,32960.0],["ผล-4491","กระจาย","240 DC ขอนแก่น","ผปก",288.0,800.0,36.0,11947.6,32960.0],["3ฒก-2833","กระจาย","490 DC หาดใหญ่","ผปก",287.7,1000.0,28.8,11900.0,41200.0],["3ฒข-1314","กระจาย","624 DC ฉะเชิงเทรา","บริษัท",287.2,800.0,35.9,11815.1,33760.0],["3ฒฆ-3091","กระจาย","621 DC รังสิต","ผปก",282.9,800.0,35.4,11600.0,33760.0],["3ฒฆ-3044","ขนย้าย","480 DC ทุ่งสง","ผปก",281.0,800.0,35.1,11657.0,32960.0],["3ฒญ-375","กระจาย","691 CDC บางนา","บริษัท",280.4,700.0,40.1,11517.7,29540.0],["1ฒฬ-6474","กระจาย","240 DC ขอนแก่น","ผปก",280.0,800.0,35.0,11604.9,32960.0],["3ฒก-2839","กระจาย","486 DC ชุมพร","บริษัท",280.0,800.0,35.0,11629.9,32960.0],["3ฒช-7736","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",280.0,600.0,46.7,11306.1,25320.0],["3ฒฐ-6124","กระจาย","484 DC สุราษฎร์","ผปก",280.0,900.0,31.1,11363.6,37080.0],["3ฒฐ-6203","ขนย้าย","150 DC เชียงใหม่","ผปก",280.0,1000.0,28.0,11723.0,41200.0],["3ฒฒ-2844","กระจาย","320 DC ชลบุรี","บริษัท",280.0,600.0,46.7,11466.1,24720.0],["3ฒข-1339","ขนย้าย","158 DC แม่ฮ่องสอน","ผปก",279.0,1000.0,27.9,11652.3,41200.0],["1ฒว-164","กระจาย","163 DC ตาก","ผปก",275.9,700.0,39.4,11445.6,28840.0],["3ฒข-1323","กระจาย","235 DC ยโสธร","ผปก",275.0,800.0,34.4,11453.7,32960.0],["3ฒฒ-3163","กระจาย","320 DC ชลบุรี","บริษัท",275.0,700.0,39.3,11265.8,28840.0],["3ฒฆ-3052","กระจาย","482 DC พังงา","บริษัท",273.0,800.0,34.1,11326.3,32960.0],["2ฒช-7398","กระจาย","624 DC ฉะเชิงเทรา","บริษัท",272.5,700.0,38.9,11200.0,28840.0],["3ฒญ-450","กระจาย","321 DC ระยอง","บริษัท",272.0,400.0,68.0,11148.8,16480.0],["1ฒส-5261","กระจาย","240 DC ขอนแก่น","ผปก",270.0,800.0,33.8,11190.7,32960.0],["2ฒช-7376","กระจาย","245 DC ร้อยเอ็ด","บริษัท",270.0,800.0,33.8,11226.6,33760.0],["2ฒฮ-7658","กระจาย","251 DC ปากช่อง","บริษัท",270.0,600.0,45.0,11140.7,25320.0],["3ฒก-2819","กระจาย","323 DC พัทยา","ผปก",270.0,800.0,33.8,11092.5,32960.0],["3ฒก-2831","กระจาย","670 DC ราชบุรี","บริษัท",270.0,700.0,38.6,11108.4,28840.0],["3ฒก-2876","กระจาย","322 DC จันทบุรี","ผปก",270.0,700.0,38.6,11143.8,28840.0],["3ฒข-1283","กระจาย","621 DC รังสิต","บริษัท",270.0,1000.0,27.0,11061.0,41200.0],["3ฒฆ-3018","กระจาย","156 DC พะเยา","ผปก",270.0,700.0,38.6,11289.6,28840.0],["3ฒฌ-7560","กระจาย","150 DC เชียงใหม่","ผปก",270.0,700.0,38.6,11277.9,28840.0],["3ฒฐ-6173","กระจาย","248 DC นครพนม","บริษัท",270.0,400.0,67.5,11268.0,16480.0],["3ฒฒ-2816","กระจาย","245 DC ร้อยเอ็ด","บริษัท",270.0,800.0,33.8,11226.3,32960.0],["3ฒฒ-2826","กระจาย","487 DC กระบี่","ผปก",270.0,700.0,38.6,9708.6,28840.0],["3ฒฐ-6132","กระจาย","325 DC ปราจีนบุรี","บริษัท",269.5,700.0,38.5,11121.7,28840.0],["3ฒฒ-2868","กระจาย","230 DC โคราช","ผปก",268.4,900.0,29.8,11100.0,37080.0],["3ฒก-2786","กระจาย","490 DC หาดใหญ่","ผปก",268.0,600.0,44.7,11101.8,25320.0],["3ฒก-2178","กระจาย","232 DC สุรินทร์","ผปก",266.6,700.0,38.1,11100.0,28840.0],["3ฒฌ-574","กระจาย","325 DC ปราจีนบุรี","ผปก",266.5,700.0,38.1,11000.0,28840.0],["1ฒฬ-707","กระจาย","230 DC โคราช","ผปก",265.0,800.0,33.1,10953.0,32960.0],["2ฒฉ-269","กระจาย","154 DC แพร่","ผปก",265.0,700.0,37.9,11018.3,29540.0],["3ฒฆ-3019","กระจาย","170 DC ชัยนาท","บริษัท",265.0,700.0,37.9,10938.4,28840.0],["3ฒฆ-3184","กระจาย","481 DC นครศรีธรรมราช","ผปก",265.0,800.0,33.1,10991.8,33760.0],["3ฒช-7725","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",265.0,600.0,44.2,9748.8,25320.0],["3ฒฐ-6085","กระจาย","150 DC เชียงใหม่","ผปก",265.0,700.0,37.9,11049.5,28840.0],["3ฒฒ-2838","กระจาย","321 DC ระยอง","บริษัท",265.0,700.0,37.9,10900.0,28840.0],["3ฒฐ-6179","กระจาย","166 DC พิจิตร","ผปก",264.0,800.0,33.0,10920.7,32960.0],["3ฒฐ-6178","กระจาย","691 CDC บางนา","ผปก",263.0,600.0,43.8,9500.0,25320.0],["2ฒฉ-262","กระจาย","231 DC บุรีรัมย์","บริษัท",262.0,800.0,32.8,10839.6,32960.0],["3ฒฐ-6163","กระจาย","154 DC แพร่","ผปก",261.8,800.0,32.7,10900.0,33760.0],["3ฒข-1322","ขนย้าย","150 DC เชียงใหม่","ผปก",261.0,800.0,32.6,10903.5,32960.0],["บธ-5170","กระจาย","232 DC สุรินทร์","ผปก",261.0,700.0,37.3,10812.5,28840.0],["ยฉ-610","กระจาย","320 DC ชลบุรี","ผปก",260.9,600.0,43.5,10720.5,25320.0],["1ฒย-9912","กระจาย","672 DC สุพรรณบุรี","บริษัท",260.0,700.0,37.1,10698.7,28840.0],["1ฒษ-8369","กระจาย","487 DC กระบี่","ผปก",260.0,700.0,37.1,9380.8,28840.0],["1ฒส-9672","กระจาย","325 DC ปราจีนบุรี","ผปก",260.0,800.0,32.5,10724.1,32960.0],["ผม-754","กระจาย","240 DC ขอนแก่น","ผปก",260.0,800.0,32.5,10783.1,32960.0],["3ฒข-1312","กระจาย","481 DC นครศรีธรรมราช","ผปก",259.0,600.0,43.2,10744.9,24720.0],["3ฒว-2896","กระจาย","691 CDC บางนา","บริษัท",258.6,600.0,43.1,10628.8,25320.0],["3ฒฒ-2851","กระจาย","691 CDC บางนา","ผปก",258.3,600.0,43.1,10600.0,25320.0],["3ฒธ-1456","กระจาย","691 CDC บางนา","ผปก",258.1,600.0,43.0,10600.0,25320.0],["3ฒก-2887","กระจาย","484 DC สุราษฎร์","ผปก",258.0,700.0,36.9,9328.4,28840.0],["3ฒข-1263","กระจาย","166 DC พิจิตร","บริษัท",258.0,700.0,36.9,10670.2,28840.0],["1ฒห-4414","กระจาย","152 DC ลำปาง","บริษัท",257.2,800.0,32.2,10698.5,33760.0],["3ฒฌ-3586","กระจาย","670 DC ราชบุรี","ผปก",256.0,800.0,32.0,9150.5,32960.0],["3ฒข-1326","กระจาย","150 DC เชียงใหม่","ผปก",255.0,700.0,36.4,10643.0,28840.0],["3ฒฆ-3034","กระจาย","241 DC อุดรธานี","บริษัท",255.0,800.0,31.9,10610.6,32960.0],["3ฒฆ-3086","กระจาย","486 DC ชุมพร","บริษัท",255.0,800.0,31.9,10583.1,32960.0],["3ฒฐ-6115","กระจาย","484 DC สุราษฎร์","ผปก",255.0,700.0,36.4,9138.9,28840.0],["2ฒฮ-7673","กระจาย","490 DC หาดใหญ่","ผปก",254.9,1000.0,25.5,10530.0,41200.0],["2ฒช-7375","กระจาย","321 DC ระยอง","บริษัท",254.5,700.0,36.4,10466.8,28840.0],["3ฒฒ-2827","กระจาย","631 DC อยุธยา","บริษัท",253.3,700.0,36.2,10422.3,28840.0],["2ฒฮ-7660","กระจาย","170 DC ชัยนาท","บริษัท",252.0,800.0,31.5,10403.3,32960.0],["3ฒฒ-2817","กระจาย","251 DC ปากช่อง","บริษัท",252.0,600.0,42.0,10397.2,24720.0],["3ฒว-3881","กระจาย","621 DC รังสิต","บริษัท",252.0,800.0,31.5,10336.2,32960.0],["1ฒย-9880","กระจาย","246 DC กาฬสินธุ์","บริษัท",250.0,700.0,35.7,10374.0,28840.0],["3ฒฆ-3134","กระจาย","234 DC อุบลราชธานี","ผปก",250.0,800.0,31.2,10376.5,32960.0],["3ฒฐ-6230","กระจาย","157 DC เชียงราย","ผปก",250.0,700.0,35.7,10470.3,28840.0],["3ฒภ-5634","กระจาย","236 DC ชัยภูมิ","ผปก",250.0,800.0,31.2,10344.5,32960.0],["ผธ-2823","กระจาย","493 DC พัทลุง","ผปก",250.0,900.0,27.8,10341.5,37080.0],["3ฒข-1285","กระจาย","241 DC อุดรธานี","ผปก",249.0,700.0,35.6,10337.4,28840.0],["3ฒธ-1315","กระจาย","157 DC เชียงราย","บริษัท",246.9,800.0,30.9,10326.0,32960.0],["3ฒก-2820","กระจาย","157 DC เชียงราย","บริษัท",246.0,800.0,30.8,10291.2,32960.0],["3ฒข-1327","กระจาย","247 DC สกลนคร","ผปก",245.0,700.0,35.0,10174.7,28840.0],["3ฒฒ-2854","กระจาย","156 DC พะเยา","ผปก",245.0,700.0,35.0,10246.6,28840.0],["3ฒญ-430","กระจาย","691 CDC บางนา","ผปก",243.6,600.0,40.6,10000.0,25320.0],["3ฒว-6339","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",243.6,700.0,34.8,10000.0,28840.0],["3ฒฐ-6162","กระจาย","240 DC ขอนแก่น","บริษัท",243.4,400.0,60.8,10088.0,16480.0],["3ฒธ-2972","กระจาย","691 CDC บางนา","ผปก",243.1,700.0,34.7,9982.4,28840.0],["3ฒญ-401","กระจาย","476 DC ชะอำ","ผปก",242.6,900.0,27.0,10000.0,37080.0],["3ฒข-1266","กระจาย","154 DC แพร่","ผปก",240.7,800.0,30.1,10000.0,33760.0],["3ฒฐ-6223","กระจาย","621 DC รังสิต","ผปก",240.3,600.0,40.1,9862.9,24720.0],["1ฒฬ-493","กระจาย","243 DC หนองคาย","ผปก",240.0,700.0,34.3,9981.9,28840.0],["1ฒฬ-6506","กระจาย","246 DC กาฬสินธุ์","บริษัท",240.0,800.0,30.0,9981.7,32960.0],["2ฒฮ-7682","กระจาย","670 DC ราชบุรี","ผปก",240.0,600.0,40.0,9556.0,25320.0],["3ฒข-1279","กระจาย","246 DC กาฬสินธุ์","บริษัท",240.0,800.0,30.0,9972.4,32960.0],["3ฒช-9990","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",240.0,600.0,40.0,9681.0,25320.0],["3ฒฌ-7544","กระจาย","163 DC ตาก","ผปก",240.0,800.0,30.0,9934.8,32960.0],["3ฒญ-366","กระจาย","691 CDC บางนา","ผปก",240.0,600.0,40.0,9870.0,24720.0],["3ฒฐ-6147","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",240.0,800.0,30.0,9870.0,32960.0],["บว-2967","กระจาย","163 DC ตาก","ผปก",240.0,900.0,26.7,9927.6,37080.0],["บห-945","กระจาย","151 DC ลำพูน","ผปก",240.0,800.0,30.0,10012.8,32960.0],["3ฒข-1258","กระจาย","151 DC ลำพูน","ผปก",239.4,800.0,29.9,10000.0,32960.0],["3ฒฒ-3161","กระจาย","230 DC โคราช","บริษัท",238.5,1200.0,19.9,9865.9,50640.0],["3ฒฌ-37","กระจาย","157 DC เชียงราย","บริษัท",238.0,800.0,29.8,9960.3,32960.0],["3ฒฌ-573","กระจาย","691 CDC บางนา","ผปก",237.8,400.0,59.4,9769.1,16480.0],["1ฒฬ-6520","กระจาย","320 DC ชลบุรี","บริษัท",237.1,600.0,39.5,9729.6,25320.0],["บบ-1409","กระจาย","155 DC น่าน","ผปก",237.0,700.0,33.9,9894.4,28840.0],["3ฒก-2844","กระจาย","493 DC พัทลุง","บริษัท",236.0,600.0,39.3,9772.4,24720.0],["3ฒฆ-6856","กระจาย","247 DC สกลนคร","ผปก",234.6,800.0,29.3,9778.4,32960.0],["3ฒฆ-3060","กระจาย","691 CDC บางนา","บริษัท",231.5,600.0,38.6,9510.0,24720.0],["3ฒว-2891","กระจาย","691 CDC บางนา","บริษัท",231.3,600.0,38.6,9500.6,25320.0],["1ฒส-5253","กระจาย","240 DC ขอนแก่น","ผปก",230.0,700.0,32.9,9522.3,28840.0],["2ฒฮ-7684","กระจาย","153 DC อุตรดิตถ์","บริษัท",230.0,600.0,38.3,9566.4,25320.0],["3ฒข-1271","กระจาย","234 DC อุบลราชธานี","ผปก",230.0,700.0,32.9,9568.2,28840.0],["3ฒข-1297","กระจาย","249 DC มุกดาหาร","ผปก",230.0,700.0,32.9,9596.8,28840.0],["3ฒฆ-3048","กระจาย","247 DC สกลนคร","ผปก",230.0,700.0,32.9,9578.8,28840.0],["บษ-9713","กระจาย","232 DC สุรินทร์","ผปก",229.5,800.0,28.7,9544.9,32960.0],["3ฒฌ-3664","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",229.3,800.0,28.7,9420.5,32960.0],["3ฒฒ-2867","กระจาย","157 DC เชียงราย","บริษัท",227.6,800.0,28.4,9512.2,32960.0],["2ฒช-7358","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",226.8,600.0,37.8,9260.0,25320.0],["3ฒฒ-2839","กระจาย","241 DC อุดรธานี","บริษัท",225.4,900.0,25.0,9387.6,37080.0],["1ฒฬ-6521","กระจาย","321 DC ระยอง","บริษัท",225.2,800.0,28.1,9241.0,32960.0],["บล-3785","กระจาย","247 DC สกลนคร","ผปก",225.0,700.0,32.1,9363.5,28840.0],["3ฒก-2778","กระจาย","493 DC พัทลุง","ผปก",224.0,700.0,32.0,9266.0,28840.0],["3ฒช-7732","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",224.0,600.0,37.3,9200.0,24720.0],["ยพ-6462","กระจาย","150 DC เชียงใหม่","ผปก",222.0,1000.0,22.2,9269.7,41200.0],["1ฒล-4663","กระจาย","673 DC นครปฐม","บริษัท",220.0,600.0,36.7,9045.3,24720.0],["1ฒฬ-709","กระจาย","243 DC หนองคาย","บริษัท",220.0,500.0,44.0,9201.4,20600.0],["3ฒฆ-3028","ขนย้าย","150 DC เชียงใหม่","ผปก",220.0,400.0,55.0,9208.0,16480.0],["3ฒธ-3332","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",220.0,700.0,31.4,9021.0,28840.0],["3ฒก-2891","กระจาย","482 DC พังงา","ผปก",219.4,800.0,27.4,9116.6,32960.0],["1ฒม-7314","กระจาย","673 DC นครปฐม","ผปก",219.0,600.0,36.5,9000.0,24720.0],["3ฒญ-372","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",219.0,600.0,36.5,8544.8,24720.0],["3ฒฒ-2856","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",219.0,600.0,36.5,8990.8,25320.0],["3ฒฐ-6193","กระจาย","322 DC จันทบุรี","ผปก",218.7,900.0,24.3,9000.0,37080.0],["2ฒฮ-7652","กระจาย","481 DC นครศรีธรรมราช","บริษัท",218.1,600.0,36.3,9040.6,24720.0],["3ฒฐ-6213","กระจาย","631 DC อยุธยา","บริษัท",217.1,800.0,27.1,8920.3,32960.0],["1ฒร-7063","กระจาย","164 DC สุโขทัย","ผปก",216.8,800.0,27.1,9000.0,32960.0],["3ฒก-2877","กระจาย","481 DC นครศรีธรรมราช","ผปก",215.4,600.0,35.9,8000.0,25320.0],["3ฒข-1330","กระจาย","157 DC เชียงราย","ผปก",215.0,600.0,35.8,8989.7,24720.0],["3ฒญ-409","กระจาย","151 DC ลำพูน","ผปก",215.0,800.0,26.9,8963.8,32960.0],["ยพ-359","กระจาย","151 DC ลำพูน","ผปก",215.0,800.0,26.9,8964.8,32960.0],["3ฒฐ-6243","กระจาย","691 CDC บางนา","ผปก",214.5,600.0,35.8,8800.0,25320.0],["3ฒฒ-2887","กระจาย","484 DC สุราษฎร์","ผปก",214.1,600.0,35.7,8868.3,24720.0],["2ฒฮ-7740","กระจาย","157 DC เชียงราย","ผปก",214.0,600.0,35.7,8919.9,24720.0],["3ฒฒ-2833","กระจาย","230 DC โคราช","ผปก",213.7,900.0,23.7,8832.2,37080.0],["3ฒฆ-3125","กระจาย","167 DC เพชรบูรณ์","ผปก",213.0,800.0,26.6,8800.0,32960.0],["3ฒฐ-6076","กระจาย","691 CDC บางนา","บริษัท",213.0,600.0,35.5,8750.5,25320.0],["3ฒว-3890","กระจาย","691 CDC บางนา","บริษัท",213.0,700.0,30.4,8755.9,28840.0],["3ฒญ-382","กระจาย","618 DC สระบุรี","บริษัท",212.7,800.0,26.6,8764.6,32960.0],["2ฒช-7399","กระจาย","231 DC บุรีรัมย์","บริษัท",212.2,800.0,26.5,8808.4,32960.0],["ยพ-3587","กระจาย","150 DC เชียงใหม่","ผปก",210.7,600.0,35.1,8800.0,24720.0],["1ฒม-7318","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",210.0,600.0,35.0,8644.5,25320.0],["3ฒฆ-3050","กระจาย","322 DC จันทบุรี","ผปก",210.0,600.0,35.0,8649.3,25320.0],["3ฒฒ-2824","กระจาย","691 CDC บางนา","ผปก",210.0,600.0,35.0,8593.5,25320.0],["3ฒฒ-2832","กระจาย","322 DC จันทบุรี","บริษัท",210.0,600.0,35.0,8629.5,25320.0],["3ฒธ-1402","กระจาย","691 CDC บางนา","ผปก",210.0,800.0,26.2,8623.5,33760.0],["บบ-4010","กระจาย","243 DC หนองคาย","ผปก",210.0,800.0,26.2,8738.9,32960.0],["3ฒก-2860","กระจาย","482 DC พังงา","ผปก",209.7,800.0,26.2,8700.0,32960.0],["3ฒฌ-7542","กระจาย","481 DC นครศรีธรรมราช","ผปก",208.4,400.0,52.1,7760.1,16480.0],["3ฒญ-423","กระจาย","153 DC อุตรดิตถ์","บริษัท",208.0,700.0,29.7,8643.2,28840.0],["2ฒฮ-7671","กระจาย","230 DC โคราช","บริษัท",206.9,500.0,41.4,8544.7,20600.0],["3ฒฆ-3132","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",206.0,500.0,41.2,8459.8,20600.0],["1ฒว-148","กระจาย","484 DC สุราษฎร์","ผปก",205.0,600.0,34.2,7492.8,24720.0],["1ฒห-4428","กระจาย","163 DC ตาก","ผปก",205.0,700.0,29.3,8500.0,28840.0],["2ฒฌ-4360","กระจาย","320 DC ชลบุรี","บริษัท",205.0,700.0,29.3,8427.3,29540.0],["3ฒฌ-7545","กระจาย","483 DC ภูเก็ต","บริษัท",205.0,600.0,34.2,8499.5,25320.0],["3ฒฒ-2836","กระจาย","323 DC พัทยา","บริษัท",205.0,400.0,51.2,8405.1,16480.0],["3ฒว-6318","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",204.8,500.0,41.0,8410.4,20600.0],["3ฒว-2881","กระจาย","691 CDC บางนา","ผปก",204.7,600.0,34.1,8400.0,25320.0],["1ฒฬ-6523","กระจาย","615 DC ลพบุรี","ผปก",204.0,800.0,25.5,8400.0,32960.0],["1ฒฬ-6508","กระจาย","320 DC ชลบุรี","บริษัท",203.5,400.0,50.9,8377.3,16480.0],["3ฒว-2904","กระจาย","323 DC พัทยา","ผปก",203.4,700.0,29.1,8342.0,29540.0],["3ฒฌ-7548","กระจาย","624 DC ฉะเชิงเทรา","บริษัท",202.7,1000.0,20.3,8320.0,41200.0],["3ฒฒ-2837","กระจาย","247 DC สกลนคร","บริษัท",202.0,600.0,33.7,8426.8,24720.0],["2ฒฮ-7681","กระจาย","490 DC หาดใหญ่","ผปก",201.7,1000.0,20.2,8330.8,41200.0],["1ฒษ-8365","กระจาย","476 DC ชะอำ","ผปก",201.2,700.0,28.7,8300.0,28840.0],["1ฒส-8865","กระจาย","320 DC ชลบุรี","ผปก",200.0,600.0,33.3,8176.0,24720.0],["3ฒฆ-3085","กระจาย","322 DC จันทบุรี","บริษัท",200.0,600.0,33.3,8232.0,24720.0],["3ฒญ-416","กระจาย","247 DC สกลนคร","ผปก",200.0,600.0,33.3,8332.0,24720.0],["3ฒฐ-6098","กระจาย","323 DC พัทยา","ผปก",200.0,600.0,33.3,8205.0,25320.0],["3ฒฐ-6233","กระจาย","621 DC รังสิต","ผปก",200.0,600.0,33.3,8200.0,24720.0],["3ฒธ-3624","กระจาย","621 DC รังสิต","บริษัท",200.0,500.0,40.0,8202.0,20600.0],["3ฒว-2893","กระจาย","241 DC อุดรธานี","ผปก",200.0,600.0,33.3,8324.5,24720.0],["2ฒฮ-7678","กระจาย","150 DC เชียงใหม่","บริษัท",199.7,500.0,39.9,8336.2,20600.0],["3ฒก-2864","กระจาย","490 DC หาดใหญ่","ผปก",199.4,800.0,24.9,8242.8,32960.0],["3ฒว-2906","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",199.0,600.0,33.2,8176.4,25320.0],["3ฒฒ-2811","กระจาย","618 DC สระบุรี","บริษัท",198.6,600.0,33.1,8182.0,24720.0],["3ฒฐ-6087","ขนย้าย","615 DC ลพบุรี","ผปก",198.5,700.0,28.4,8132.0,28840.0],["3ฒธ-2514","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",197.8,600.0,33.0,8127.5,25320.0],["3ฒก-2863","กระจาย","490 DC หาดใหญ่","ผปก",197.0,800.0,24.6,8142.8,32960.0],["3ฒญ-447","กระจาย","157 DC เชียงราย","ผปก",196.3,500.0,39.3,8200.0,20600.0],["3ฒก-1951","กระจาย","167 DC เพชรบูรณ์","ผปก",195.5,600.0,32.6,8100.0,25320.0],["3ฒธ-3915","ขนย้าย","615 DC ลพบุรี","ผปก",195.5,700.0,27.9,8000.0,28840.0],["1ฒห-4407","กระจาย","322 DC จันทบุรี","ผปก",195.0,900.0,21.7,8000.0,37080.0],["3ฒฌ-13","กระจาย","691 CDC บางนา","ผปก",195.0,600.0,32.5,7996.2,24720.0],["3ฒฒ-2881","กระจาย","157 DC เชียงราย","บริษัท",195.0,500.0,39.0,8160.3,20600.0],["3ฒฐ-6237","กระจาย","320 DC ชลบุรี","บริษัท",194.6,500.0,38.9,7981.1,20600.0],["1ฒล-4652","กระจาย","167 DC เพชรบูรณ์","ผปก",193.7,600.0,32.3,8015.6,25320.0],["3ฒก-2862","กระจาย","490 DC หาดใหญ่","ผปก",193.1,500.0,38.6,8000.0,20600.0],["1ฒฬ-487","กระจาย","481 DC นครศรีธรรมราช","ผปก",193.0,600.0,32.2,7355.8,25320.0],["2ฒฮ-7675","กระจาย","248 DC นครพนม","บริษัท",193.0,800.0,24.1,8024.9,32960.0],["บว-1808","กระจาย","163 DC ตาก","ผปก",193.0,700.0,27.6,8000.0,28840.0],["3ฒข-1336","กระจาย","484 DC สุราษฎร์","ผปก",192.3,800.0,24.0,7952.2,32960.0],["1ฒฮ-3169","กระจาย","322 DC จันทบุรี","ผปก",192.0,800.0,24.0,7900.0,32960.0],["3ฒว-6331","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",192.0,500.0,38.4,7889.1,20600.0],["3ฒข-1273","กระจาย","621 DC รังสิต","ผปก",190.6,600.0,31.8,7800.0,24720.0],["2ฒอ-635","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",190.0,600.0,31.7,7792.2,25320.0],["3ฒก-2784","กระจาย","691 CDC บางนา","ผปก",190.0,500.0,38.0,7754.5,20600.0],["3ฒฌ-7006","กระจาย","170 DC ชัยนาท","บริษัท",190.0,500.0,38.0,7848.8,20600.0],["3ฒญ-387","กระจาย","323 DC พัทยา","ผปก",190.0,600.0,31.7,7817.8,25320.0],["3ฒฐ-6146","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",190.0,600.0,31.7,7796.5,25320.0],["3ฒว-6322","กระจาย","691 CDC บางนา","บริษัท",190.0,600.0,31.7,7804.6,24720.0],["1ฒฬ-697","กระจาย","234 DC อุบลราชธานี","บริษัท",189.0,700.0,27.0,7863.3,28840.0],["3ฒฐ-6110","ขนย้าย","155 DC น่าน","ผปก",189.0,700.0,27.0,7320.4,28840.0],["3ฒว-2878","กระจาย","691 CDC บางนา","บริษัท",189.0,600.0,31.5,7743.5,25320.0],["2ฒฮ-7662","กระจาย","691 CDC บางนา","ผปก",188.6,600.0,31.4,7500.0,25320.0],["3ฒฌ-7558","กระจาย","618 DC สระบุรี","บริษัท",188.0,600.0,31.3,7732.8,24720.0],["3ฒว-3879","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",186.1,500.0,37.2,7637.4,20600.0],["2ฒษ-3921","กระจาย","230 DC โคราช","ผปก",186.0,600.0,31.0,7683.6,25320.0],["3ฒก-2847","กระจาย","691 CDC บางนา","ผปก",185.6,600.0,30.9,7600.0,25320.0],["3ฒญ-344","กระจาย","230 DC โคราช","ผปก",185.0,600.0,30.8,7642.2,24720.0],["3ฒญ-348","กระจาย","234 DC อุบลราชธานี","ผปก",185.0,700.0,26.4,7699.6,28840.0],["3ฒฐ-6121","กระจาย","243 DC หนองคาย","ผปก",185.0,600.0,30.8,7707.3,24720.0],["3ฒฉ-6986","กระจาย","691 CDC บางนา","ผปก",183.3,600.0,30.6,7500.0,25320.0],["1ฒม-7320","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",183.0,600.0,30.5,7500.0,25320.0],["ผค-4676","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",182.7,500.0,36.5,7500.0,20600.0],["1ฒย-9874","กระจาย","323 DC พัทยา","บริษัท",182.3,600.0,30.4,7487.1,25320.0],["3ฒก-2837","กระจาย","490 DC หาดใหญ่","ผปก",181.6,800.0,22.7,7500.0,32960.0],["3ฒว-6338","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",181.2,500.0,36.2,7440.0,20600.0],["3ฒก-2823","กระจาย","691 CDC บางนา","ผปก",180.0,600.0,30.0,7366.6,25320.0],["3ฒก-2852","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",180.0,600.0,30.0,7418.4,25320.0],["3ฒฆ-3023","ขนย้าย","171 DC แม่สาย","ผปก",180.0,1300.0,13.8,7438.0,53560.0],["3ฒช-7727","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",180.0,600.0,30.0,6903.0,25320.0],["3ฒฌ-7546","กระจาย","150 DC เชียงใหม่","ผปก",180.0,600.0,30.0,7521.0,24720.0],["3ฒญ-395","กระจาย","673 DC นครปฐม","ผปก",180.0,600.0,30.0,7401.0,24720.0],["3ฒธ-3294","กระจาย","691 CDC บางนา","บริษัท",180.0,600.0,30.0,7397.0,24720.0],["3ฒว-2911","กระจาย","691 CDC บางนา","บริษัท",180.0,600.0,30.0,7383.0,25320.0],["3ฒข-1315","กระจาย","691 CDC บางนา","ผปก",179.4,500.0,35.9,7357.5,20600.0],["3ฒข-1306","กระจาย","150 DC เชียงใหม่","บริษัท",179.2,400.0,44.8,7495.4,16480.0],["ผก-869","กระจาย","621 DC รังสิต","ผปก",179.0,600.0,29.8,6800.0,25320.0],["2ฒฮ-7656","กระจาย","150 DC เชียงใหม่","ผปก",177.0,600.0,29.5,7382.8,24720.0],["3ฒฆ-3110","กระจาย","691 CDC บางนา","บริษัท",175.0,700.0,25.0,7200.2,28840.0],["3ฒฆ-3142","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",175.0,500.0,35.0,7036.6,20600.0],["2ฒฮ-7724","กระจาย","691 CDC บางนา","บริษัท",174.9,600.0,29.2,7186.3,25320.0],["ผต-3400","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",174.5,400.0,43.6,6677.5,16480.0],["ผค-8640","กระจาย","165 DC พิษณุโลก","ผปก",174.1,500.0,34.8,6300.0,20600.0],["1ฒห-4403","กระจาย","150 DC เชียงใหม่","ผปก",174.0,800.0,21.8,7244.5,32960.0],["2ฒฌ-4363","กระจาย","621 DC รังสิต","ผปก",174.0,600.0,29.0,7134.4,25320.0],["3ฒฆ-3092","กระจาย","321 DC ระยอง","บริษัท",173.5,800.0,21.7,7140.1,32960.0],["71-1079","ขนย้าย","170 DC ชัยนาท","ผปก",173.2,1000.0,17.3,7102.0,41200.0],["3ฒก-2966","กระจาย","321 DC ระยอง","บริษัท",172.2,800.0,21.5,7121.2,32960.0],["3ฒฆ-3098","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",172.0,500.0,34.4,6426.1,20600.0],["3ฒก-2849","กระจาย","150 DC เชียงใหม่","บริษัท",171.4,500.0,34.3,7171.9,20600.0],["3ฒช-7735","กระจาย","621 DC รังสิต","ผปก",171.0,600.0,28.5,7000.0,24720.0],["3ฒฐ-6103","กระจาย","483 DC ภูเก็ต","บริษัท",171.0,500.0,34.2,7087.1,20600.0],["3ฒส-6320","กระจาย","691 CDC บางนา","ผปก",170.5,500.0,34.1,7000.0,20600.0],["1ฒล-4622","กระจาย","691 CDC บางนา","ผปก",170.4,600.0,28.4,7000.0,25320.0],["3ฒฐ-1916","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",170.1,400.0,42.5,7000.0,16480.0],["1ฒฬ-6512","กระจาย","166 DC พิจิตร","ผปก",170.0,900.0,18.9,7027.4,37080.0],["1ฒฬ-684","กระจาย","325 DC ปราจีนบุรี","ผปก",170.0,800.0,21.2,7010.0,32960.0],["3ฒญ-411","ขนย้าย","691 CDC บางนา","ผปก",170.0,600.0,28.3,6980.7,24720.0],["1ฒบ-4299","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",169.8,500.0,34.0,6975.4,20600.0],["2ฒช-7379","กระจาย","671 DC กาญจนบุรี","ผปก",169.7,400.0,42.4,7000.0,16480.0],["3ฒธ-2561","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",169.5,500.0,33.9,6963.9,20600.0],["3ฒฌ-7538","ขนย้าย","167 DC เพชรบูรณ์","ผปก",169.1,960.0,17.6,7000.0,39552.0],["3ฒฐ-6106","กระจาย","249 DC มุกดาหาร","ผปก",168.9,600.0,28.1,7033.5,24720.0],["ผฉ-9964","กระจาย","621 DC รังสิต","ผปก",168.5,500.0,33.7,6000.0,20600.0],["2ฒฮ-7685","กระจาย","157 DC เชียงราย","ผปก",168.0,700.0,24.0,7034.3,28840.0],["2ฒฮ-7713","กระจาย","160 DC นครสวรรค์","บริษัท",168.0,500.0,33.6,6916.3,20600.0],["3ฒธ-1541","กระจาย","691 CDC บางนา","ผปก",168.0,600.0,28.0,6898.9,24720.0],["3ฒฆ-3049","กระจาย","171 DC แม่สาย","ผปก",166.9,400.0,41.7,7000.0,16480.0],["3ฒญ-391","กระจาย","240 DC ขอนแก่น","ผปก",166.0,600.0,27.7,6880.7,25320.0],["3ฒว-2883","กระจาย","691 CDC บางนา","บริษัท",166.0,600.0,27.7,6807.6,25320.0],["3ฒว-2890","กระจาย","691 CDC บางนา","บริษัท",165.4,600.0,27.6,6790.0,24720.0],["3ฒข-1301","กระจาย","150 DC เชียงใหม่","บริษัท",165.0,500.0,33.0,6884.1,20600.0],["1ฒษ-8366","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",163.2,400.0,40.8,6700.0,16480.0],["1ฒฬ-6511","กระจาย","476 DC ชะอำ","ผปก",163.0,600.0,27.2,6731.5,24720.0],["3ฒฆ-3128","กระจาย","670 DC ราชบุรี","ผปก",163.0,600.0,27.2,6700.0,24720.0],["3ฒญ-403","กระจาย","691 CDC บางนา","บริษัท",162.0,320.0,50.6,6650.9,12800.0],["3ฒฌ-7547","กระจาย","691 CDC บางนา","บริษัท",161.2,600.0,26.9,6613.7,24720.0],["3ฒฌ-34","กระจาย","487 DC กระบี่","ผปก",160.0,600.0,26.7,5736.8,25320.0],["3ฒญ-343","กระจาย","165 DC พิษณุโลก","ผปก",160.0,600.0,26.7,5760.8,24720.0],["3ฒฒ-3159","กระจาย","152 DC ลำปาง","ผปก",158.7,600.0,26.4,6600.0,24720.0],["2ฒง-5710","กระจาย","691 CDC บางนา","บริษัท",158.6,600.0,26.4,6510.1,25320.0],["3ฒว-6342","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",158.1,700.0,22.6,6502.6,29540.0],["2ฒฮ-7690","กระจาย","621 DC รังสิต","ผปก",157.3,500.0,31.5,5600.0,20600.0],["3ฒว-3907","กระจาย","483 DC ภูเก็ต","ผปก",156.4,600.0,26.1,6500.0,25320.0],["3ฒญ-435","กระจาย","483 DC ภูเก็ต","บริษัท",156.0,500.0,31.2,6467.2,20600.0],["3ฒฌ-16","กระจาย","234 DC อุบลราชธานี","ผปก",155.0,500.0,31.0,6469.0,20600.0],["1ฒร-5694","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",154.0,400.0,38.5,6316.4,16480.0],["3ฒญ-448","กระจาย","621 DC รังสิต","ผปก",153.9,600.0,25.6,6300.0,24720.0],["1ฒฬ-6524","กระจาย","481 DC นครศรีธรรมราช","บริษัท",153.8,600.0,25.6,6408.3,24720.0],["3ฒธ-3283","กระจาย","621 DC รังสิต","บริษัท",153.4,600.0,25.6,6290.8,25320.0],["3ฒฌ-7556","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",152.0,400.0,38.0,6216.4,16480.0],["3ฒฆ-3083","กระจาย","246 DC กาฬสินธุ์","ผปก",150.9,700.0,21.6,6272.9,28840.0],["3ฒก-2874","กระจาย","490 DC หาดใหญ่","ผปก",150.8,600.0,25.1,6232.1,24720.0],["1ฒฬ-690","กระจาย","230 DC โคราช","ผปก",150.0,500.0,30.0,6175.5,20600.0],["2ฒฉ-305","กระจาย","150 DC เชียงใหม่","ผปก",150.0,500.0,30.0,6257.8,20600.0],["2ฒฮ-7737","กระจาย","691 CDC บางนา","ผปก",150.0,500.0,30.0,6159.0,20600.0],["3ฒก-2867","กระจาย","167 DC เพชรบูรณ์","ผปก",150.0,400.0,37.5,6208.4,16480.0],["3ฒข-1255","กระจาย","150 DC เชียงใหม่","ผปก",150.0,600.0,25.0,6262.5,24720.0],["3ฒญ-451","กระจาย","691 CDC บางนา","ผปก",150.0,400.0,37.5,6165.8,16480.0],["3ฒฐ-6135","กระจาย","320 DC ชลบุรี","ผปก",150.0,400.0,37.5,6159.0,16480.0],["3ฒฐ-6139","กระจาย","490 DC หาดใหญ่","ผปก",150.0,400.0,37.5,6205.5,16480.0],["3ฒฒ-2857","กระจาย","150 DC เชียงใหม่","ผปก",150.0,400.0,37.5,6262.5,16480.0],["3ฒฒ-2886","กระจาย","490 DC หาดใหญ่","บริษัท",150.0,700.0,21.4,6184.5,28840.0],["2ฒฮ-7663","กระจาย","621 DC รังสิต","ผปก",146.5,600.0,24.4,6000.0,24720.0],["1ฒร-5715","กระจาย","691 CDC บางนา","ผปก",146.3,400.0,36.6,6000.0,16480.0],["3ฒก-2868","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",146.3,600.0,24.4,6000.0,25320.0],["3ฒฐ-6253","กระจาย","691 CDC บางนา","ผปก",146.3,400.0,36.6,6000.0,16480.0],["3ฒพ-4561","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",146.3,500.0,29.3,6000.0,20600.0],["1ฒล-4630","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",146.2,400.0,36.6,6000.0,16480.0],["2ฒฮ-7718","กระจาย","691 CDC บางนา","ผปก",146.1,400.0,36.5,6000.0,16480.0],["3ฒฒ-2846","กระจาย","240 DC ขอนแก่น","บริษัท",145.9,600.0,24.3,6043.2,25320.0],["1ฒส-9685","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",145.8,400.0,36.5,6000.0,16480.0],["3ฒส-6884","กระจาย","691 CDC บางนา","ผปก",145.2,400.0,36.3,6000.0,16480.0],["2ฒช-7390","กระจาย","247 DC สกลนคร","ผปก",145.0,600.0,24.2,6054.5,24720.0],["3ฒฆ-3029","กระจาย","246 DC กาฬสินธุ์","ผปก",145.0,800.0,18.1,6034.8,32960.0],["3ฒฌ-7531","กระจาย","483 DC ภูเก็ต","ผปก",144.0,600.0,24.0,6000.0,25320.0],["3ฒว-6337","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",144.0,700.0,20.6,5922.4,29540.0],["บพ-8625","กระจาย","151 DC ลำพูน","ผปก",143.9,600.0,24.0,6000.0,24720.0],["3ฒฐ-6256","กระจาย","631 DC อยุธยา","บริษัท",142.0,600.0,23.7,5830.6,25320.0],["3ฒธ-1797","กระจาย","691 CDC บางนา","บริษัท",141.7,700.0,20.2,5797.0,29540.0],["3ฒฒ-2823","กระจาย","691 CDC บางนา","ผปก",140.5,600.0,23.4,5000.0,25320.0],["3ฒฌ-7534","กระจาย","691 CDC บางนา","บริษัท",138.4,500.0,27.7,5509.6,20600.0],["3ฒธ-1595","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",137.0,400.0,34.2,5617.3,16480.0],["2ฒฮ-7716","กระจาย","490 DC หาดใหญ่","ผปก",135.4,700.0,19.3,5600.0,28840.0],["1ฒย-9926","กระจาย","691 CDC บางนา","ผปก",135.0,400.0,33.8,5528.5,16480.0],["3ฒธ-3303","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",135.0,500.0,27.0,5534.8,20600.0],["3ฒห-9392","ขนย้าย","691 CDC บางนา","ผปก",135.0,600.0,22.5,5546.7,24720.0],["3ฒฐ-6209","กระจาย","691 CDC บางนา","ผปก",134.1,400.0,33.5,5500.0,16480.0],["ตข-7276","กระจาย","621 DC รังสิต","ผปก",131.9,600.0,22.0,5400.0,25320.0],["3ฒก-2875","กระจาย","490 DC หาดใหญ่","ผปก",131.8,900.0,14.6,5453.4,37080.0],["1ฒร-5714","กระจาย","160 DC นครสวรรค์","บริษัท",130.3,600.0,21.7,5377.6,24720.0],["3ฒว-6321","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",129.5,700.0,18.5,5309.7,29540.0],["3ฒว-2902","กระจาย","691 CDC บางนา","บริษัท",128.8,600.0,21.5,5290.0,24720.0],["2ฒช-7567","กระจาย","670 DC ราชบุรี","ผปก",128.5,600.0,21.4,5300.0,24720.0],["1ฒม-7323","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",126.7,400.0,31.7,5200.0,16480.0],["2ฒฮ-7736","กระจาย","691 CDC บางนา","ผปก",125.0,400.0,31.2,5133.9,16480.0],["3ฒฒ-2848","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",124.0,400.0,31.0,5095.9,16480.0],["1ฒฮ-3183","กระจาย","321 DC ระยอง","ผปก",123.7,500.0,24.7,5086.1,20600.0],["3ฒว-6333","กระจาย","621 DC รังสิต","บริษัท",123.3,700.0,17.6,5063.0,29540.0],["ฒว-828","กระจาย","691 CDC บางนา","ผปก",122.8,400.0,30.7,5000.0,16480.0],["2ฒช-7396","กระจาย","691 CDC บางนา","ผปก",122.3,400.0,30.6,5000.0,16480.0],["2ฒฮ-7664","กระจาย","691 CDC บางนา","ผปก",122.2,400.0,30.6,5000.0,16480.0],["1ฒส-5260","กระจาย","691 CDC บางนา","ผปก",121.8,400.0,30.4,5000.0,16480.0],["3ฒฆ-3100","กระจาย","621 DC รังสิต","ผปก",121.8,800.0,15.2,5000.0,33760.0],["1ฒย-9863","กระจาย","691 CDC บางนา","ผปก",121.5,400.0,30.4,5000.0,16480.0],["1ฒผ-1667","กระจาย","691 CDC บางนา","ผปก",120.0,500.0,24.0,4926.0,20600.0],["1ฒย-9891","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",120.0,400.0,30.0,4896.0,16480.0],["1ฒร-5687","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",120.0,500.0,24.0,4922.0,20600.0],["1ฒร-5717","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",120.0,400.0,30.0,4926.0,16480.0],["3ฒก-2836","กระจาย","480 DC ทุ่งสง","ผปก",120.0,900.0,13.3,4975.2,37080.0],["3ฒก-2850","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",120.0,400.0,30.0,4920.0,16480.0],["3ฒญ-386","กระจาย","150 DC เชียงใหม่","ผปก",120.0,400.0,30.0,5019.0,16480.0],["3ฒฒ-2810","กระจาย","323 DC พัทยา","บริษัท",119.0,500.0,23.8,4887.1,20600.0],["3ฒฆ-3120","กระจาย","671 DC กาญจนบุรี","ผปก",118.8,500.0,23.8,4900.0,20600.0],["บบ-700","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",117.0,400.0,29.2,4802.2,16480.0],["3ฒห-5419","กระจาย","691 CDC บางนา","ผปก",116.5,500.0,23.3,4800.0,20600.0],["3ฒฆ-3032","กระจาย","320 DC ชลบุรี","บริษัท",116.0,800.0,14.5,4768.3,32960.0],["3ฒว-2901","กระจาย","674 DC สมุทรสาคร","บริษัท",115.3,500.0,23.1,4740.0,20600.0],["2ฒฮ-7686","กระจาย","691 CDC บางนา","ผปก",115.0,400.0,28.7,4728.3,16480.0],["3ฒว-2880","กระจาย","691 CDC บางนา","บริษัท",115.0,462.0,24.9,4736.2,18480.0],["1ฒฬ-469","กระจาย","157 DC เชียงราย","ผปก",114.0,500.0,22.8,4765.6,20600.0],["3ฒฐ-6196","กระจาย","618 DC สระบุรี","บริษัท",113.7,400.0,28.4,4681.7,16480.0],["ผท-2607","กระจาย","490 DC หาดใหญ่","ผปก",112.6,400.0,28.2,4642.8,16480.0],["1ฒฬ-6507","กระจาย","323 DC พัทยา","บริษัท",110.9,400.0,27.7,4538.9,16480.0],["2ฒช-7397","กระจาย","486 DC ชุมพร","บริษัท",110.0,800.0,13.8,4557.8,32960.0],["2ฒฮ-7687","กระจาย","621 DC รังสิต","ผปก",106.4,400.0,26.6,4000.0,16480.0],["3ฒฌ-7541","กระจาย","691 CDC บางนา","บริษัท",105.0,600.0,17.5,4313.5,24720.0],["3ฒฆ-3115","กระจาย","483 DC ภูเก็ต","บริษัท",104.1,500.0,20.8,4320.7,20600.0],["3ฒก-2851","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",100.0,400.0,25.0,3700.2,16480.0],["3ฒฌ-7554","กระจาย","610 DC พุทธมณฑลสาย 3","ผปก",100.0,400.0,25.0,3671.0,16480.0],["3ฒธ-3887","กระจาย","674 DC สมุทรสาคร","บริษัท",99.1,400.0,24.8,4080.0,16480.0],["2ฒฮ-7689","กระจาย","155 DC น่าน","ผปก",98.1,600.0,16.4,4100.0,24720.0],["2ฒฮ-7242","กระจาย","621 DC รังสิต","ผปก",97.4,400.0,24.3,4000.0,16480.0],["1ฒฬ-481","กระจาย","691 CDC บางนา","ผปก",97.3,400.0,24.3,4000.0,16480.0],["2ฒช-7364","กระจาย","691 CDC บางนา","ผปก",97.0,400.0,24.2,4000.0,16480.0],["3ฒฒ-3162","กระจาย","156 DC พะเยา","ผปก",96.4,600.0,16.1,4037.0,24720.0],["3ฒฒ-2819","กระจาย","483 DC ภูเก็ต","บริษัท",96.0,400.0,24.0,3982.8,16480.0],["1ฒฬ-6498","กระจาย","483 DC ภูเก็ต","บริษัท",90.0,400.0,22.5,3729.7,16480.0],["3ฒฌ-7533","กระจาย","691 CDC บางนา","บริษัท",90.0,600.0,15.0,3699.5,24720.0],["3ฒฐ-6088","กระจาย","150 DC เชียงใหม่","ผปก",90.0,400.0,22.5,3772.5,16480.0],["3ฒญ-445","กระจาย","691 CDC บางนา","บริษัท",88.9,500.0,17.8,3645.0,20600.0],["3ฒฐ-6077","กระจาย","321 DC ระยอง","บริษัท",87.3,1000.0,8.7,3593.5,42200.0],["3ฒฐ-6171","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",86.0,400.0,21.5,3524.8,16480.0],["2ฒฮ-7714","กระจาย","150 DC เชียงใหม่","บริษัท",83.7,400.0,20.9,3500.0,16480.0],["2ฒฮ-7725","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",80.0,400.0,20.0,3278.6,16480.0],["3ฒฒ-2821","กระจาย","150 DC เชียงใหม่","ผปก",77.8,600.0,13.0,3246.5,24720.0],["2ฒฮ-7721","กระจาย","150 DC เชียงใหม่","บริษัท",76.0,400.0,19.0,3172.1,16480.0],["3ฒญ-449","กระจาย","483 DC ภูเก็ต","บริษัท",76.0,500.0,15.2,3165.8,20600.0],["3ฒฆ-3038","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",75.0,500.0,15.0,3083.3,20600.0],["3ฒธ-2798","กระจาย","691 CDC บางนา","บริษัท",75.0,600.0,12.5,3078.7,24720.0],["1ฒษ-8358","กระจาย","631 DC อยุธยา","ผปก",73.1,500.0,14.6,3000.0,20600.0],["บน-7064","กระจาย","621 DC รังสิต","ผปก",72.3,500.0,14.5,3000.0,20600.0],["2ฒฉ-276","กระจาย","165 DC พิษณุโลก","ผปก",72.1,400.0,18.0,3000.0,16480.0],["1ฒฬ-6500","กระจาย","243 DC หนองคาย","บริษัท",72.0,400.0,18.0,2994.8,16480.0],["1ฒฬ-476","กระจาย","171 DC แม่สาย","ผปก",71.7,400.0,17.9,3000.0,16480.0],["3ฒฒ-2831","กระจาย","691 CDC บางนา","บริษัท",67.7,500.0,13.5,2646.0,20600.0],["1ฒพ-1410","กระจาย","154 DC แพร่","ผปก",64.9,500.0,13.0,2700.0,20600.0],["2ฒฉ-280","กระจาย","483 DC ภูเก็ต","บริษัท",64.0,400.0,16.0,2660.0,16480.0],["1ฒฬ-485","กระจาย","323 DC พัทยา","บริษัท",61.8,400.0,15.4,2537.2,16480.0],["3ฒข-1310","กระจาย","484 DC สุราษฎร์","บริษัท",61.7,400.0,15.4,2554.4,16480.0],["1ฒฬ-6525","กระจาย","165 DC พิษณุโลก","ผปก",60.0,500.0,12.0,2497.8,20600.0],["3ฒฆ-3097","กระจาย","691 CDC บางนา","บริษัท",58.9,600.0,9.8,2400.0,24720.0],["3ฒฒ-2878","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",58.8,400.0,14.7,2420.0,16480.0],["3ฒก-2806","กระจาย","481 DC นครศรีธรรมราช","บริษัท",57.3,500.0,11.5,2370.6,20600.0],["3ฒฆ-3072","กระจาย","621 DC รังสิต","บริษัท",50.0,600.0,8.3,2052.5,24720.0],["3ฒญ-442","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",49.7,500.0,9.9,2042.0,20600.0],["บธ-2834","กระจาย","621 DC รังสิต","ผปก",48.6,400.0,12.2,2000.0,16480.0],["3ฒญ-7453","กระจาย","621 DC รังสิต","ผปก",48.3,400.0,12.1,2000.0,16480.0],["บท-7725","กระจาย","163 DC ตาก","ผปก",43.8,400.0,10.9,1800.0,16480.0],["3ฒก-2770","กระจาย","484 DC สุราษฎร์","บริษัท",41.2,400.0,10.3,1712.2,16480.0],["1ฒฮ-3175","กระจาย","322 DC จันทบุรี","บริษัท",30.0,600.0,5.0,1224.3,25320.0],["3ฒฌ-7530","ขนย้าย","150 DC เชียงใหม่","ผปก",30.0,800.0,3.8,1243.5,32960.0],["3ฒธ-1889","กระจาย","691 CDC บางนา","บริษัท",28.9,700.0,4.1,1200.0,28840.0],["ฒน-9235","กระจาย","621 DC รังสิต","ผปก",28.1,400.0,7.0,1200.0,16480.0],["3ฒฐ-6185","กระจาย","621 DC รังสิต","บริษัท",27.0,400.0,6.8,1106.0,16480.0],["3ฒว-3922","กระจาย","610 DC พุทธมณฑลสาย 3","บริษัท",25.0,600.0,4.2,1020.0,24720.0],["บพ-8461","กระจาย","235 DC ยโสธร","ผปก",25.0,700.0,3.6,1034.8,28840.0],["1ฒล-4636","กระจาย","691 CDC บางนา","บริษัท",24.3,400.0,6.1,1000.0,16480.0],["2ฒฮ-7734","กระจาย","691 CDC บางนา","บริษัท",20.0,400.0,5.0,827.0,16480.0],["3ฒช-7730","กระจาย","621 DC รังสิต","บริษัท",20.0,600.0,3.3,816.0,25320.0],["3ฒข-1262","กระจาย","160 DC นครสวรรค์","บริษัท",13.0,1200.0,1.1,540.6,50640.0],["3ฒฆ-3025","ขนย้าย","673 DC นครปฐม","ผปก",12.0,1200.0,1.0,500.0,49440.0],["3ฒฆ-3079","กระจาย","490 DC หาดใหญ่","ผปก",12.0,600.0,2.0,500.0,24720.0],["3ฒช-7734","กระจาย","691 CDC บางนา","บริษัท",10.0,600.0,1.7,413.5,24720.0]],"over_pa":[],"near_pa":[["3ฒก-2774","กระจาย","672 DC สุพรรณบุรี","บริษัท",592.3,800.0,74.0,23094.2,32960.0],["3ฒฆ-3127","กระจาย","691 CDC บางนา","บริษัท",355.0,400.0,88.8,14566.8,16480.0],["3ฒว-3917","กระจาย","248 DC นครพนม","ผปก",320.0,400.0,80.0,13295.2,16480.0]]};
+let D = JSON.parse(JSON.stringify(INIT));
+let STORE = {}; // multi-file store
+let CH = {};
+
+// ════════ UTILS ════════
+const fmt = n => Math.round(n).toLocaleString('th-TH');
+const fmt1 = n => (+n).toLocaleString('th-TH',{minimumFractionDigits:1,maximumFractionDigits:1});
+const pct  = (a,b) => b>0 ? a/b*100 : 0;
+const pctS = (a,b) => pct(a,b).toFixed(1)+'%';
+
+function pchip(p){
+  let c = 'b-green';
+  if(p>100) c='b-red'; else if(p>80) c='b-yellow'; else if(p>50) c='b-purple';
+  return `<span class="pchip bdg ${c}">${p.toFixed(1)}%</span>`;
+}
+function statusBdg(p){
+  if(p>100) return `<span class="bdg b-red">เกิน PA</span>`;
+  if(p>80)  return `<span class="bdg b-yellow">ใกล้เกิน</span>`;
+  if(p>50)  return `<span class="bdg b-purple">กลาง</span>`;
+  return `<span class="bdg b-green">ปกติ</span>`;
+}
+
+// ════════ THEME ════════
+let theme = localStorage.getItem('fcd-theme')||'light';
+function applyTheme(){
+  document.body.className = theme==='dark'?'dark':'';
+  document.querySelectorAll('.tsw-btn').forEach(b=>{
+    b.classList.toggle('on', (theme==='dark'&&b.textContent.includes('Dark'))||(theme==='light'&&b.textContent.includes('Light')));
+  });
+}
+function setTheme(t,btn){
+  theme=t; localStorage.setItem('fcd-theme',t);
+  applyTheme();
+  setTimeout(renderCharts,80);
+}
+applyTheme();
+
+// ════════ TABS ════════
+function goTab(id,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.tabbar-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  if(btn) btn.classList.add('on');
+  if(id==='dc') renderDCTab();
+  if(id==='vehicles') renderVeh();
+  if(id==='trend') renderTrend();
+  if(id==='alert') renderAlert();
+}
+
+// ════════ MODAL ════════
+function openM(id){document.getElementById(id).classList.add('open')}
+function closeM(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.moverlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')}));
+
+// ════════ RENDER DASHBOARD ════════
+function render(d){
+  D = d;
+  const paL=d.pa_liters, paB=d.pa_baht, tL=d.total_liters, tB=d.total_baht;
+  const pL=pct(tL,paL), pB=pct(tB,paB);
+
+  document.getElementById('period-badge').textContent = d.period;
+  if(document.getElementById('period-sub')) document.getElementById('period-sub').textContent = d.period;
+  document.getElementById('hn-l').textContent  = fmt(tL);
+  document.getElementById('hn-lp').textContent = pL.toFixed(1)+'%';
+  document.getElementById('pa-lt').textContent = fmt(paL);
+  document.getElementById('pa-lr').textContent = fmt(paL-tL);
+  document.getElementById('hn-b').textContent  = fmt(tB);
+  document.getElementById('hn-bp').textContent = pB.toFixed(1)+'%';
+  document.getElementById('pa-bt').textContent = fmt(paB);
+  document.getElementById('pa-br').textContent = fmt(paB-tB);
+  document.getElementById('k-v').textContent   = fmt(d.vehicles);
+  document.getElementById('k-dc').textContent  = fmt(d.dcs);
+  document.getElementById('k-tx').textContent  = fmt(d.transactions);
+  document.getElementById('k-pr').textContent  = '฿'+d.avg_price.toFixed(2);
+
+  setTimeout(()=>{
+    document.getElementById('pf-l').style.width = Math.min(pL,100)+'%';
+    document.getElementById('pf-b').style.width = Math.min(pB,100)+'%';
+  },120);
+
+  // Group breakdown
+  const cols = ['var(--accent)','var(--purple)'];
+  document.getElementById('grp-break').innerHTML = d.by_group.map(([g,l],i)=>{
+    const p = (l/tL*100).toFixed(1);
+    return `<div class="brow">
+      <div class="brow-head"><span>${g}</span><span style="color:${cols[i]}">${fmt(l)} ล. <small style="color:var(--muted)">(${p}%)</small></span></div>
+      <div class="brow-track"><div class="brow-fill" style="width:${p}%;background:${cols[i]}"></div></div>
+    </div>`;
+  }).join('');
+
+  const ocols = ['#057a55','#e3522c'];
+  document.getElementById('own-break').innerHTML = d.by_owner.map(([o,l],i)=>{
+    const p = (l/tL*100).toFixed(1);
+    return `<div class="brow">
+      <div class="brow-head"><span>${o}</span><span style="color:${ocols[i]}">${fmt(l)} ล. <small style="color:var(--muted)">(${p}%)</small></span></div>
+      <div class="brow-track"><div class="brow-fill" style="width:${p}%;background:${ocols[i]}"></div></div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('dc-cnt').textContent = (d.dc_summary||[]).length + ' รายการ';
+
+  renderCharts();
+  renderTopDC();
+  renderTopPlates();
+  renderAlert();
+}
+
+// ════════ CHARTS ════════
+function gc(){return theme==='dark'?'rgba(100,116,139,.2)':'rgba(0,0,0,.06)'}
+function tc(){return theme==='dark'?'#94a3b8':'#6b7280'}
+function dc2(id){if(CH[id]){CH[id].destroy();delete CH[id]}}
+
+function renderCharts(){
+  renderDailyChart();
+  renderVtypeChart();
+}
+
+function renderDailyChart(){
+  dc2('daily');
+  const d=D; if(!d.daily) return;
+  const labels=d.daily.map(r=>r[0].replace('/2569',''));
+  const liters=d.daily.map(r=>r[1]);
+  const ctx=document.getElementById('c-daily').getContext('2d');
+  CH['daily']=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{label:'ลิตร',data:liters,backgroundColor:'rgba(59,130,246,.72)',borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'  '+fmt(c.raw)+' ลิตร'}}},
+      scales:{x:{grid:{color:gc()},ticks:{color:tc(),font:{family:'Sarabun'}}},y:{grid:{color:gc()},ticks:{color:tc(),font:{family:'Sarabun'},callback:v=>fmt(v)}}}}
+  });
+}
+
+function renderVtypeChart(){
+  dc2('vtype');
+  const d=D; if(!d.by_vtype) return;
+  const labels=d.by_vtype.map(r=>r[0]);
+  const vals=d.by_vtype.map(r=>r[1]);
+  const colors=['#3b82f6','#f97316','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#84cc16'];
+  const ctx=document.getElementById('c-vtype').getContext('2d');
+  CH['vtype']=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels,datasets:[{data:vals,backgroundColor:colors,borderWidth:2,borderColor:theme==='dark'?'#1a1d27':'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{color:tc(),font:{family:'Sarabun',size:10},boxWidth:10,padding:6}},tooltip:{callbacks:{label:c=>c.label+': '+fmt(c.raw)+' ล.'}}}}
+  });
+}
+
+function renderTrend(){
+  dc2('tgrp'); dc2('tbaht'); dc2('tpa'); dc2('tprice');
+  const d=D; if(!d.daily_grp) return;
+  const dates=[...new Set(d.daily_grp.map(r=>r[0]))].sort();
+  const gk=dates.map(dt=>{const r=d.daily_grp.find(x=>x[0]===dt&&x[1]==='กระจาย');return r?r[2]:0});
+  const kn=dates.map(dt=>{const r=d.daily_grp.find(x=>x[0]===dt&&x[1]==='ขนย้าย');return r?r[2]:0});
+  const lb=dates.map(x=>x.replace('/2569',''));
+
+  // ── กลางซ้าย: ลิตรรายวัน vs PA (แท่ง) ──
+  const dailyLiters=d.daily.map(r=>r[1]);
+  const paPerDay=d.pa_liters>0 ? Array(d.daily.length).fill(Math.round(d.pa_liters/30)) : [];
+  const lbD=d.daily.map(r=>r[0].replace('/2569',''));
+  const ctx0=document.getElementById('c-tpa').getContext('2d');
+  CH['tpa']=new Chart(ctx0,{type:'bar',
+    data:{labels:lbD,datasets:[
+      {label:'ลิตรที่ใช้',data:dailyLiters,backgroundColor:'rgba(59,130,246,.75)',borderRadius:5,borderSkipped:false,order:2},
+      {label:'PA (รายวัน est.)',data:paPerDay,type:'line',borderColor:'#f87171',backgroundColor:'rgba(248,113,113,.1)',borderDash:[6,3],pointRadius:4,pointBackgroundColor:'#f87171',fill:false,order:1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:tc(),font:{family:'Sarabun',size:11}}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.raw)+' ล.'}}},
+      scales:{x:{grid:{color:gc()},ticks:{color:tc()}},y:{grid:{color:gc()},ticks:{color:tc(),callback:v=>fmt(v)}}}}
+  });
+
+  // ── กลางขวา: ราคาน้ำมัน บาท/ลิตร กราฟเส้น ──
+  const priceData=d.daily_price||d.daily.map(r=>d.avg_price||41.0);
+  const ctx3=document.getElementById('c-tprice').getContext('2d');
+  CH['tprice']=new Chart(ctx3,{type:'line',
+    data:{labels:lbD,datasets:[{
+      label:'ราคา (฿/ลิตร)',data:priceData,
+      borderColor:'#c27803',backgroundColor:'rgba(194,120,3,.1)',
+      fill:true,tension:.4,pointRadius:6,pointBackgroundColor:'#c27803',
+      pointBorderColor:'#fff',pointBorderWidth:2
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'฿'+c.raw.toFixed(2)+'/ล.'}}},
+      scales:{
+        x:{grid:{color:gc()},ticks:{color:tc()}},
+        y:{grid:{color:gc()},ticks:{color:tc(),callback:v=>'฿'+v.toFixed(2)},
+           min:Math.min(...priceData)-0.5, max:Math.max(...priceData)+0.5}
+      }}
+  });
+
+  // ── กลุ่ม stacked bar ──
+  const ctx1=document.getElementById('c-tgrp').getContext('2d');
+  CH['tgrp']=new Chart(ctx1,{type:'bar',
+    data:{labels:lb,datasets:[
+      {label:'กระจาย',data:gk,backgroundColor:'rgba(59,130,246,.75)',borderRadius:4,borderSkipped:false},
+      {label:'ขนย้าย',data:kn,backgroundColor:'rgba(139,92,246,.75)',borderRadius:4,borderSkipped:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:tc(),font:{family:'Sarabun'}}}},
+      scales:{x:{stacked:true,grid:{color:gc()},ticks:{color:tc()}},y:{stacked:true,grid:{color:gc()},ticks:{color:tc(),callback:v=>fmt(v)}}}}
+  });
+
+  // ── บาทรายวัน line ──
+  const bth=d.daily.map(r=>r[2]);
+  const ctx2=document.getElementById('c-tbaht').getContext('2d');
+  CH['tbaht']=new Chart(ctx2,{type:'line',
+    data:{labels:lbD,datasets:[{label:'บาท',data:bth,borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.1)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:'#f97316'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'฿'+fmt(c.raw)}}},
+      scales:{x:{grid:{color:gc()},ticks:{color:tc()}},y:{grid:{color:gc()},ticks:{color:tc(),callback:v=>'฿'+fmt(v)}}}}
+  });
+
+  // ── Daily table ──
+  const grpMap={};
+  (d.daily_grp||[]).forEach(r=>{if(!grpMap[r[0]])grpMap[r[0]]={};grpMap[r[0]][r[1]]=r[2]});
+  document.getElementById('daily-tbody').innerHTML = d.daily.map((r,i)=>{
+    const gk2=grpMap[r[0]]?.['กระจาย']||0;
+    const kn2=grpMap[r[0]]?.['ขนย้าย']||0;
+    const pr=priceData[i]||d.avg_price||0;
+    return `<tr><td>${r[0]}</td><td class="r"><strong>${fmt(r[1])}</strong></td><td class="r">฿${fmt(r[2])}</td><td class="r" style="color:var(--yellow);font-weight:700">฿${pr.toFixed(2)}</td><td class="r">${fmt(gk2)}</td><td class="r">${fmt(kn2)}</td></tr>`;
+  }).join('');
+}
+
+// ════════ TOP DC ════════
+function renderTopDC(){
+  const d=D; if(!d.dc_summary) return;
+  const gk=d.dc_summary.filter(r=>r[1]==='กระจาย').sort((a,b)=>b[2]-a[2]).slice(0,10);
+  const kn=d.dc_summary.filter(r=>r[1]==='ขนย้าย').sort((a,b)=>b[2]-a[2]).slice(0,10);
+
+  const rr=(rows,tbl)=>{
+    const mx=rows[0]?rows[0][2]:1;
+    const tot=rows.reduce((s,r)=>s+r[2],0);
+    document.querySelector('#'+tbl+' tbody').innerHTML=rows.map((r,i)=>{
+      const w=(r[2]/mx*100).toFixed(1);
+      const p=(r[2]/D.total_liters*100).toFixed(1);
+      return `<tr class="clickrow" onclick="showDCVeh('${r[0]}')">
+        <td style="color:var(--muted)">${i+1}</td>
+        <td><span class="bdg b-gray" style="font-size:10px">${r[0].replace(/^\d+\s+/,'')}</span></td>
+        <td class="r"><strong>${fmt(r[2])}</strong></td>
+        <td><div class="bi"><div class="bm"><div class="bf" style="width:${w}%;background:var(--accent)"></div></div><span style="font-size:10px;min-width:30px">${p}%</span></div></td>
+        <td class="r">${r[4]}</td>
+      </tr>`;
+    }).join('');
+  };
+  rr(gk,'t-dc-gk'); rr(kn,'t-dc-kn');
+}
+
+// ════════ TOP PLATES ════════
+function renderTopPlates(){
+  const d=D;
+  [['top_gk_own','t-p-gk-o'],['top_gk_co','t-p-gk-c'],['top_kn_own','t-p-kn-o'],['top_kn_co','t-p-kn-c']].forEach(([k,id])=>{
+    if(!d[k]) return;
+    const rows=d[k]; const mx=rows[0]?rows[0][1]:1;
+    document.querySelector('#'+id+' tbody').innerHTML=rows.map((r,i)=>`
+      <tr class="clickrow" onclick="showVehModal('${r[0]}')">
+        <td style="color:var(--muted)">${i+1}</td>
+        <td><strong>${r[0]}</strong></td>
+        <td class="r">${fmt(r[1])}</td>
+        <td>${pchip(r[2])}</td>
+      </tr>`).join('');
+  });
+}
+
+// ════════ DC TAB ════════
+function renderDCTab(){
+  const d=D; if(!d.dc_summary) return;
+  const grp=document.getElementById('f-dcgrp').value;
+  const q=(document.getElementById('f-dcsearch').value||'').toLowerCase();
+
+  // Aggregate
+  const map={};
+  d.dc_summary.forEach(r=>{
+    if(grp && r[1]!==grp) return;
+    if(q && !r[0].toLowerCase().includes(q)) return;
+    if(!map[r[0]]) map[r[0]]={dc:r[0],l:0,b:0,v:0};
+    map[r[0]].l+=r[2]; map[r[0]].b+=r[3]; map[r[0]].v+=r[4];
+  });
+  const rows=Object.values(map).sort((a,b)=>b.l-a.l);
+  const tot=rows.reduce((s,r)=>s+r.l,0);
+
+  document.getElementById('dc-tbody').innerHTML=rows.map((r,i)=>{
+    const p=(r.l/tot*100).toFixed(1);
+    return `<tr class="clickrow" onclick="showDCVeh('${r.dc}')">
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><strong>${r.dc.replace(/^\d+\s+/,'')}</strong><br><small style="color:var(--muted)">${r.dc.match(/^\d+/)?.[0]||''}</small></td>
+      <td><span class="bdg b-gray" style="font-size:10px">${grp||'รวม'}</span></td>
+      <td class="r"><strong>${fmt(r.l)}</strong></td>
+      <td class="r">฿${fmt(r.b)}</td>
+      <td class="r">${r.v}</td>
+      <td><div class="bi"><div class="bm"><div class="bf" style="width:${p}%;background:var(--accent)"></div></div><span style="font-size:10px;min-width:32px">${p}%</span></div></td>
+      <td><span class="bdg b-blue" style="cursor:pointer">›</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════ VEHICLES TAB ════════
+function renderVeh(){
+  const d=D; if(!d.all_vehicles) return;
+  const grp=document.getElementById('f-vgrp').value;
+  const own=document.getElementById('f-vown').value;
+  const dc =document.getElementById('f-vdc').value;
+  const minP=parseFloat(document.getElementById('f-vpct').value)||0;
+  const q=(document.getElementById('f-vpl').value||'').toLowerCase();
+
+  // Populate DC select
+  const sel=document.getElementById('f-vdc');
+  if(sel.options.length<=1){
+    [...new Set(d.all_vehicles.map(r=>r[2]))].sort().forEach(dc=>{
+      const o=document.createElement('option'); o.value=dc; o.textContent=dc.replace(/^\d+\s+/,''); sel.appendChild(o);
+    });
+  }
+
+  let rows=d.all_vehicles;
+  if(grp)  rows=rows.filter(r=>r[1]===grp);
+  if(own)  rows=rows.filter(r=>r[3]===own);
+  if(dc)   rows=rows.filter(r=>r[2]===dc);
+  if(minP>=100) rows=rows.filter(r=>r[6]>100);
+  else if(minP>0) rows=rows.filter(r=>r[6]>=minP);
+  if(q) rows=rows.filter(r=>r[0].toLowerCase().includes(q));
+
+  document.getElementById('veh-tbody').innerHTML=rows.slice(0,300).map((r,i)=>`
+    <tr class="clickrow" onclick="showVehModal('${r[0]}')">
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><strong>${r[0]}</strong></td>
+      <td><span class="bdg ${r[1]==='กระจาย'?'b-blue':'b-purple'}">${r[1]}</span></td>
+      <td style="font-size:11px">${r[2].replace(/^\d+\s+/,'')}</td>
+      <td><span class="bdg ${r[3]==='ผปก'?'b-green':'b-gray'}">${r[3]}</span></td>
+      <td class="r">${fmt(r[4])}</td>
+      <td class="r">${r[5]>0?fmt(r[5]):'—'}</td>
+      <td>${r[5]>0?pchip(r[6]):'—'}</td>
+      <td class="r">฿${fmt(r[7])}</td>
+      <td>${r[5]>0?statusBdg(r[6]):'—'}</td>
+    </tr>`).join('');
+}
+
+// ════════ ALERT ════════
+function renderAlert(){
+  const d=D;
+  const over=d.over_pa||[];
+  const near=d.near_pa||[];
+  document.getElementById('a-over').textContent=over.length;
+  document.getElementById('a-near').textContent=near.length;
+  document.getElementById('abadge').textContent=over.length+near.length;
+
+  document.getElementById('opa-tbody').innerHTML=over.length===0
+    ?'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">✅ ไม่มีรถที่เกิน PA ในช่วงนี้</td></tr>'
+    :over.map((r,i)=>`<tr>
+        <td>${i+1}</td><td><strong>${r[0]}</strong></td>
+        <td><span class="bdg b-purple">${r[1]}</span></td>
+        <td style="font-size:11px">${r[2].replace(/^\d+\s+/,'')}</td>
+        <td><span class="bdg b-gray">${r[3]}</span></td>
+        <td class="r">${fmt(r[4])}</td><td class="r">${fmt(r[5])}</td>
+        <td class="r" style="color:var(--red)">+${fmt(r[4]-r[5])}</td>
+        <td>${pchip(r[6])}</td>
+      </tr>`).join('');
+
+  document.getElementById('npa-tbody').innerHTML=near.length===0
+    ?'<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">✅ ไม่มีรถที่ใกล้เกิน PA ในช่วงนี้</td></tr>'
+    :near.map((r,i)=>`<tr>
+        <td>${i+1}</td><td><strong>${r[0]}</strong></td>
+        <td><span class="bdg b-purple">${r[1]}</span></td>
+        <td style="font-size:11px">${r[2].replace(/^\d+\s+/,'')}</td>
+        <td><span class="bdg b-gray">${r[3]}</span></td>
+        <td class="r">${fmt(r[4])}</td><td class="r">${fmt(r[5])}</td>
+        <td>${pchip(r[6])}</td>
+      </tr>`).join('');
+}
+
+// ════════ DETAIL MODALS ════════
+function showDCVeh(dcName){
+  const d=D;
+  document.getElementById('m-dtitle').textContent='🏢 '+dcName;
+  const vs=(d.all_vehicles||[]).filter(r=>r[2]===dcName).sort((a,b)=>b[4]-a[4]);
+  const tot=vs.reduce((s,r)=>s+r[4],0);
+  document.getElementById('m-dbody').innerHTML=`
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">รถ ${vs.length} คัน · รวม ${fmt(tot)} ลิตร ใน ${dcName.replace(/^\d+\s+/,'')}</p>
+    <div class="sb2"><table class="dt">
+      <thead><tr><th>#</th><th>ทะเบียน</th><th>กลุ่ม</th><th>เจ้าของ</th><th class="r">ลิตร</th><th class="r">PA ล.</th><th>%PA</th><th class="r">บาท</th></tr></thead>
+      <tbody>${vs.map((r,i)=>`<tr>
+        <td>${i+1}</td><td><strong>${r[0]}</strong></td>
+        <td><span class="bdg ${r[1]==='กระจาย'?'b-blue':'b-purple'}">${r[1]}</span></td>
+        <td><span class="bdg ${r[3]==='ผปก'?'b-green':'b-gray'}">${r[3]}</span></td>
+        <td class="r">${fmt(r[4])}</td>
+        <td class="r">${r[5]>0?fmt(r[5]):'—'}</td>
+        <td>${r[5]>0?pchip(r[6]):'—'}</td>
+        <td class="r">฿${fmt(r[7])}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  openM('m-detail');
+}
+
+function showVehModal(plate){
+  const d=D;
+  const v=(d.all_vehicles||[]).find(r=>r[0]===plate);
+  if(!v) return;
+  document.getElementById('m-dtitle').textContent='🚗 '+plate;
+  document.getElementById('m-dbody').innerHTML=`
+    <div class="g g2" style="margin-bottom:14px">
+      <div class="kbox"><div class="klabel">ปริมาณใช้ (ลิตร)</div><div class="kval" style="color:var(--accent)">${fmt(v[4])}</div></div>
+      <div class="kbox"><div class="klabel">PA ลิตร</div><div class="kval">${v[5]>0?fmt(v[5]):'—'}</div></div>
+      <div class="kbox"><div class="klabel">% ใช้ PA</div><div class="kval">${v[5]>0?v[6].toFixed(1)+'%':'—'}</div></div>
+      <div class="kbox"><div class="klabel">ยอดเงิน</div><div class="kval" style="color:var(--a2)">฿${fmt(v[7])}</div></div>
+    </div>
+    <table class="dt"><tbody>
+      <tr><td style="color:var(--muted);width:100px">กลุ่มรถ</td><td><span class="bdg ${v[1]==='กระจาย'?'b-blue':'b-purple'}">${v[1]}</span></td></tr>
+      <tr><td style="color:var(--muted)">DC</td><td>${v[2]}</td></tr>
+      <tr><td style="color:var(--muted)">เจ้าของ</td><td><span class="bdg ${v[3]==='ผปก'?'b-green':'b-gray'}">${v[3]}</span></td></tr>
+      <tr><td style="color:var(--muted)">PA บาท</td><td>${v[8]>0?'฿'+fmt(v[8]):'—'}</td></tr>
+      <tr><td style="color:var(--muted)">สถานะ</td><td>${v[5]>0?statusBdg(v[6]):'—'}</td></tr>
+    </tbody></table>`;
+  openM('m-detail');
+}
+
+function showAllDC(grp){
+  const d=D;
+  const rows=(d.dc_summary||[]).filter(r=>!grp||r[1]===grp).sort((a,b)=>b[2]-a[2]);
+  document.getElementById('m-dtitle').textContent=`🏢 DC ทั้งหมด — ${grp}`;
+  document.getElementById('m-dbody').innerHTML=`
+    <div class="sb2"><table class="dt">
+      <thead><tr><th>#</th><th>DC</th><th class="r">ลิตร</th><th class="r">บาท</th><th class="r">รถ</th></tr></thead>
+      <tbody>${rows.map((r,i)=>`<tr class="clickrow" onclick="showDCVeh('${r[0]}');closeM('m-detail');setTimeout(()=>openM('m-detail'),10)">
+        <td>${i+1}</td><td>${r[0].replace(/^\d+\s+/,'')}</td>
+        <td class="r"><strong>${fmt(r[2])}</strong></td><td class="r">฿${fmt(r[3])}</td><td class="r">${r[4]}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  openM('m-detail');
+}
+
+function showAllPlates(grp,own){
+  const d=D;
+  const rows=(d.all_vehicles||[]).filter(r=>r[1]===grp&&r[3]===own).sort((a,b)=>b[4]-a[4]);
+  document.getElementById('m-dtitle').textContent=`🚗 ${grp} · ${own} — ทะเบียนทั้งหมด`;
+  document.getElementById('m-dbody').innerHTML=`
+    <div class="sb2"><table class="dt">
+      <thead><tr><th>#</th><th>ทะเบียน</th><th>DC</th><th class="r">ลิตร</th><th class="r">PA ล.</th><th>%PA</th><th class="r">บาท</th></tr></thead>
+      <tbody>${rows.map((r,i)=>`<tr>
+        <td>${i+1}</td><td><strong>${r[0]}</strong></td>
+        <td style="font-size:11px">${r[2].replace(/^\d+\s+/,'')}</td>
+        <td class="r">${fmt(r[4])}</td>
+        <td class="r">${r[5]>0?fmt(r[5]):'—'}</td>
+        <td>${r[5]>0?pchip(r[6]):'—'}</td>
+        <td class="r">฿${fmt(r[7])}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  openM('m-detail');
+}
+
+// ════════ FILE UPLOAD ════════
+function doDrop(e){
+  e.preventDefault();
+  document.getElementById('uzone').classList.remove('drag');
+  const f=e.dataTransfer.files[0];
+  if(f) processFile(f);
+}
+function onFile(e){const f=e.target.files[0];if(f) processFile(f);}
+
+function processFile(file){
+  document.getElementById('ustatus').textContent='⏳ กำลังอ่าน '+file.name+'...';
+  // Show skeleton
+  ['hn-l','hn-b','hn-lp','hn-bp','k-v','k-dc','k-tx','k-pr'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.dataset.orig=el.textContent;el.textContent='...';}
+  });
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1});
+      let hIdx=0;
+      for(let i=0;i<Math.min(raw.length,5);i++){
+        if(raw[i].some(c=>String(c).includes('วันที่')||String(c).includes('ทะเบียน'))){hIdx=i;break;}
+      }
+      const hdrs=raw[hIdx].map(c=>String(c).trim());
+      const rows=raw.slice(hIdx+1).filter(r=>r.some(c=>c!=null&&c!==''));
+      const ci={
+        date:hdrs.findIndex(h=>h.includes('วันที่')),
+        liter:hdrs.findIndex(h=>h.includes('ปริมาณ')||h.includes('ลิตร')),
+        baht:hdrs.findIndex(h=>h.includes('จำนวนเงิน')),
+        price:hdrs.findIndex(h=>h.includes('ราคา')),
+        plate:hdrs.findIndex(h=>h.includes('ทะเบียน')),
+        pab:hdrs.findIndex(h=>h.includes('วงเงิน')&&h.includes('บาท')),
+        pal:hdrs.findIndex(h=>h.includes('วงเงิน')&&h.includes('ลิตร')),
+        grp:hdrs.findIndex(h=>h.includes('กลุ่ม')),
+        dc:hdrs.findIndex(h=>h.includes('สังกัด')||h.includes('DC')),
+        vt:hdrs.findIndex(h=>h.includes('ประเภทรถ')),
+        own:hdrs.findIndex(h=>h.includes('ผปก')||h.includes('บริษัท'))
+      };
+      const parsed=rows.map(r=>({
+        date:String(r[ci.date]||'').trim(),
+        liter:parseFloat(r[ci.liter])||0,
+        baht:parseFloat(r[ci.baht])||0,
+        price:parseFloat(r[ci.price])||0,
+        plate:String(r[ci.plate]||'').trim(),
+        paBaht:parseFloat(r[ci.pab])||0,
+        paLiter:parseFloat(r[ci.pal])||0,
+        group:String(r[ci.grp]||'').trim(),
+        dc:String(r[ci.dc]||'').trim(),
+        vtype:String(r[ci.vt]||'').trim(),
+        owner:String(r[ci.own]||'').trim()
+      })).filter(r=>r.plate&&r.liter>0);
+
+      if(!parsed.length){document.getElementById('ustatus').textContent='❌ ไม่พบข้อมูล';return;}
+
+      const dates=[...new Set(parsed.map(r=>r.date))].sort();
+      const range=dates[0]+' – '+dates[dates.length-1];
+
+      // Remove overlapping entries
+      const newDateSet=new Set(dates);
+      Object.keys(STORE).forEach(k=>{
+        const existDates=STORE[k].dates||[];
+        if(existDates.some(d=>newDateSet.has(d))){
+          console.log('Removed overlapping store:',k);
+          delete STORE[k];
+        }
+      });
+
+      const key=range+'|'+file.name;
+      STORE[key]={rows:parsed,filename:file.name,range,dates};
+
+      // Merge & compute
+      let all=[];
+      Object.values(STORE).forEach(s=>all=all.concat(s.rows));
+      const computed=computeFromRows(all);
+      render(computed);
+
+      // Update file log
+      const tags=Object.values(STORE).map(s=>`<span class="ftag">${s.filename} (${s.range})</span>`).join('');
+      document.getElementById('flist').innerHTML=tags||'—';
+
+      document.getElementById('ustatus').textContent=`✅ โหลด ${parsed.length} รายการ — ${range}`;
+      setTimeout(()=>closeM('m-upload'),1200);
+    } catch(err){
+      document.getElementById('ustatus').textContent='❌ '+err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function computeFromRows(rows){
+  if(!rows||!rows.length) return D;
+  const tL=rows.reduce((s,r)=>s+r.liter,0);
+  const tB=rows.reduce((s,r)=>s+r.baht,0);
+  const avgP=rows.filter(r=>r.price>0).reduce((s,r)=>s+r.price,0)/(rows.filter(r=>r.price>0).length||1);
+  const dates=[...new Set(rows.map(r=>r.date))].sort();
+  const period=dates[0]+' – '+dates[dates.length-1];
+
+  const vMap={};
+  rows.forEach(r=>{
+    if(!vMap[r.plate]) vMap[r.plate]={plate:r.plate,group:r.group,dc:r.dc,owner:r.owner,vtype:r.vtype,paBaht:r.paBaht,paLiter:r.paLiter,l:0,b:0};
+    vMap[r.plate].l+=r.liter; vMap[r.plate].b+=r.baht;
+    if(r.paBaht>0) vMap[r.plate].paBaht=r.paBaht;
+    if(r.paLiter>0) vMap[r.plate].paLiter=r.paLiter;
+  });
+  const vs=Object.values(vMap);
+  const paL=vs.reduce((s,v)=>s+(v.paLiter>0?v.paLiter:0),0);
+  const paB=vs.reduce((s,v)=>s+(v.paBaht>0?v.paBaht:0),0);
+
+  const grpMap={};
+  rows.forEach(r=>{if(!grpMap[r.group])grpMap[r.group]={l:0,b:0};grpMap[r.group].l+=r.liter;grpMap[r.group].b+=r.baht});
+  const by_group=Object.entries(grpMap).map(([k,v])=>[k,round1(v.l),round1(v.b)]);
+
+  const ownMap={};
+  rows.forEach(r=>{if(!ownMap[r.owner])ownMap[r.owner]={l:0,b:0};ownMap[r.owner].l+=r.liter;ownMap[r.owner].b+=r.baht});
+  const by_owner=Object.entries(ownMap).map(([k,v])=>[k,round1(v.l),round1(v.b)]);
+
+  const vtMap={};
+  rows.forEach(r=>{if(!vtMap[r.vtype])vtMap[r.vtype]=0;vtMap[r.vtype]+=r.liter});
+  const by_vtype=Object.entries(vtMap).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,round1(v)]);
+
+  const dMap={};
+  rows.forEach(r=>{if(!dMap[r.date])dMap[r.date]={l:0,b:0,prices:[]};dMap[r.date].l+=r.liter;dMap[r.date].b+=r.baht;if(r.price>0)dMap[r.date].prices.push(r.price)});
+  const daily=Object.entries(dMap).sort().map(([d,v])=>[d,round1(v.l),round1(v.b)]);
+  const daily_price=Object.entries(dMap).sort().map(([d,v])=>v.prices.length?round1(v.prices.reduce((a,b)=>a+b)/v.prices.length):avgP);
+
+  const dgMap={};
+  rows.forEach(r=>{const k=r.date+'|'+r.group;if(!dgMap[k])dgMap[k]={d:r.date,g:r.group,l:0};dgMap[k].l+=r.liter});
+  const daily_grp=Object.values(dgMap).sort((a,b)=>a.d.localeCompare(b.d)).map(r=>[r.d,r.g,round1(r.l)]);
+
+  const dcgMap={};
+  rows.forEach(r=>{const k=r.dc+'|'+r.group;if(!dcgMap[k])dcgMap[k]={dc:r.dc,g:r.group,l:0,b:0,v:new Set()};dcgMap[k].l+=r.liter;dcgMap[k].b+=r.baht;dcgMap[k].v.add(r.plate)});
+  const dc_summary=Object.values(dcgMap).sort((a,b)=>b.l-a.l).map(r=>[r.dc,r.g,round1(r.l),round1(r.b),r.v.size]);
+
+  const t10=(g,o)=>vs.filter(v=>v.group===g&&v.owner===o).sort((a,b)=>b.l-a.l).slice(0,10).map(v=>[v.plate,round1(v.l),v.paLiter>0?round1(v.l/v.paLiter*100):0,v.dc]);
+
+  const all_vehicles=vs.sort((a,b)=>b.l-a.l).map(v=>[v.plate,v.group,v.dc,v.owner,round1(v.l),v.paLiter>0?v.paLiter:0,v.paLiter>0?round1(v.l/v.paLiter*100):0,round1(v.b),v.paBaht>0?v.paBaht:0]);
+  const over_pa=all_vehicles.filter(r=>r[5]>0&&r[6]>100).sort((a,b)=>b[6]-a[6]);
+  const near_pa=all_vehicles.filter(r=>r[5]>0&&r[6]>70&&r[6]<=100).sort((a,b)=>b[6]-a[6]);
+
+  return{period,total_liters:round1(tL),total_baht:round1(tB),pa_liters:round1(paL),pa_baht:round1(paB),
+    vehicles:vs.length,dcs:[...new Set(rows.map(r=>r.dc))].length,transactions:rows.length,avg_price:+avgP.toFixed(2),
+    by_group,by_owner,by_vtype,daily,daily_price,daily_grp,dc_summary,
+    top_gk_own:t10('กระจาย','ผปก'),top_gk_co:t10('กระจาย','บริษัท'),
+    top_kn_own:t10('ขนย้าย','ผปก'),top_kn_co:t10('ขนย้าย','บริษัท'),
+    all_vehicles,over_pa,near_pa};
+}
+function round1(n){return Math.round(n*10)/10}
+
+// ════════ EXPORT ════════
+function doPNG(){
+  const btn=document.querySelector('[onclick="doPNG()"]');
+  const orig=btn.textContent;
+  btn.textContent='⏳ กำลังบันทึก...';
+  btn.disabled=true;
+
+  // Scroll to top, hide sticky topbar temporarily
+  const topbar=document.querySelector('.topbar');
+  const tabbar=document.querySelector('.tabbar');
+  const prevTopPos=window.scrollY;
+  window.scrollTo(0,0);
+
+  // Make topbar non-sticky for capture
+  topbar.style.position='relative';
+
+  html2canvas(document.body,{
+    scale:2,
+    useCORS:true,
+    allowTaint:true,
+    backgroundColor:theme==='dark'?'#0f1117':'#f0f4fa',
+    scrollX:0,
+    scrollY:0,
+    windowWidth:document.body.scrollWidth,
+    windowHeight:document.body.scrollHeight,
+    logging:false
+  }).then(canvas=>{
+    topbar.style.position='';
+    window.scrollTo(0,prevTopPos);
+    btn.textContent=orig; btn.disabled=false;
+
+    const link=document.createElement('a');
+    const period=(D.period||'dashboard').replace(/[ –/]/g,'_');
+    link.download=`fleet_dashboard_${period}.png`;
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+  }).catch(err=>{
+    topbar.style.position='';
+    window.scrollTo(0,prevTopPos);
+    btn.textContent=orig; btn.disabled=false;
+    alert('Export PNG ไม่สำเร็จ: '+err.message);
+  });
+}
+
+function doXlsx(){
+  const d=D;
+  const wb=XLSX.utils.book_new();
+  const s=[['Fleet Card Dashboard — สรุปภาพรวม'],['ช่วงข้อมูล',d.period],
+    ['ลิตรรวม',d.total_liters],['PA ลิตร',d.pa_liters],['% PA ลิตร',pct(d.total_liters,d.pa_liters).toFixed(1)+'%'],
+    ['บาทรวม',d.total_baht],['PA บาท',d.pa_baht],['% PA บาท',pct(d.total_baht,d.pa_baht).toFixed(1)+'%'],
+    ['จำนวนรถ',d.vehicles],['จำนวน DC',d.dcs],['ธุรกรรม',d.transactions],['ราคา/ลิตร',d.avg_price]];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(s),'สรุป');
+  if(d.dc_summary) XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['DC','กลุ่ม','ลิตร','บาท','รถ'],...d.dc_summary]),'DC');
+  if(d.all_vehicles) XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['ทะเบียน','กลุ่ม','DC','เจ้าของ','ลิตร','PA ลิตร','%PA','บาท','PA บาท'],...d.all_vehicles]),'รถ');
+  if(d.daily) XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['วันที่','ลิตร','บาท'],...d.daily]),'รายวัน');
+  XLSX.writeFile(wb,`fleet_${(d.period||'').replace(/[ –/]/g,'_')}.xlsx`);
+}
+
+// ════════ EXPORT (filter-aware) ════════
+function expDC(){
+  const d=D; if(!d.dc_summary) return;
+  const grp=document.getElementById('f-dcgrp').value;
+  const q=(document.getElementById('f-dcsearch').value||'').toLowerCase();
+  // aggregate same as renderDCTab
+  const map={};
+  d.dc_summary.forEach(r=>{
+    if(grp && r[1]!==grp) return;
+    if(q && !r[0].toLowerCase().includes(q)) return;
+    if(!map[r[0]]) map[r[0]]={dc:r[0],l:0,b:0,v:0};
+    map[r[0]].l+=r[2]; map[r[0]].b+=r[3]; map[r[0]].v+=r[4];
+  });
+  const rows=Object.values(map).sort((a,b)=>b.l-a.l).map(r=>[r.dc,'รวม',r.l,r.b,r.v]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['DC','กลุ่ม','ลิตร','บาท','รถ'],...rows]),'DC');
+  const notice=document.getElementById('dc-exp-notice');
+  if(notice) notice.textContent = (grp||q)?'(ตาม filter)':'';
+  XLSX.writeFile(wb,'dc_summary'+(grp?'_'+grp:'')+(q?'_'+q:'')+'.xlsx');
+}
+
+function expVeh(){
+  const d=D; if(!d.all_vehicles) return;
+  const grp=document.getElementById('f-vgrp').value;
+  const own=document.getElementById('f-vown').value;
+  const dc=document.getElementById('f-vdc').value;
+  const minP=parseFloat(document.getElementById('f-vpct').value)||0;
+  const q=(document.getElementById('f-vpl').value||'').toLowerCase();
+  let rows=d.all_vehicles;
+  if(grp) rows=rows.filter(r=>r[1]===grp);
+  if(own) rows=rows.filter(r=>r[3]===own);
+  if(dc) rows=rows.filter(r=>r[2]===dc);
+  if(minP>=100) rows=rows.filter(r=>r[6]>100);
+  else if(minP>0) rows=rows.filter(r=>r[6]>=minP);
+  if(q) rows=rows.filter(r=>r[0].toLowerCase().includes(q));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['ทะเบียน','กลุ่ม','DC','เจ้าของ','ลิตร','PA ลิตร','%PA','บาท','PA บาท'],...rows]),'รถ');
+  XLSX.writeFile(wb,'vehicles'+(grp?'_'+grp:'')+(own?'_'+own:'')+'.xlsx');
+}
+
+function expModal(){
+  const tbl=document.querySelector('#m-dbody table');
+  if(!tbl) return;
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.table_to_sheet(tbl),'Data');
+  XLSX.writeFile(wb,'detail.xlsx');
+}
+
+// ════════ BURN RATE ════════
+function renderBurnRate(d){
+  const wrap=document.getElementById('burn-wrap');
+  if(!d.daily||d.daily.length===0){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  const days=d.daily.length;
+  const avgPerDay=d.total_liters/days;
+  // Calculate remaining days in month from last date
+  let daysLeft=30-days; // fallback
+  try{
+    const lastDateStr=d.daily[d.daily.length-1][0]; // e.g. "04/05/2569"
+    const parts=lastDateStr.split('/');
+    const month=parseInt(parts[1]);
+    const year=parseInt(parts[2])-543; // Buddhist to Gregorian
+    const daysInMonth=new Date(year,month,0).getDate();
+    const dayOfMonth=parseInt(parts[0]);
+    daysLeft=Math.max(0,daysInMonth-dayOfMonth);
+  }catch(e){}
+  const projRemaining=avgPerDay*daysLeft;
+  const projTotal=d.total_liters+projRemaining;
+  const paL=d.pa_liters;
+  document.getElementById('burn-avg').textContent=fmt(avgPerDay);
+  document.getElementById('burn-proj').textContent=fmt(projTotal);
+  let status='';
+  if(paL>0){
+    const overAmt=projTotal-paL;
+    if(overAmt>0){
+      status=`<span class="burn-warn">⚠️ คาดเกิน PA<br>${fmt(overAmt)} ลิตร</span>`;
+    } else {
+      const daysCanUse=Math.floor((paL-d.total_liters)/avgPerDay);
+      status=`<span style="color:var(--green);font-weight:700">✅ PA เพียงพออีก<br>~${daysCanUse} วัน</span>`;
+    }
+  }
+  document.getElementById('burn-status').innerHTML=status;
+}
+
+// ════════ DC MINI KPI ════════
+function renderDCMiniKPI(d){
+  const el=document.getElementById('dc-kpi-row');
+  if(!el||!d.dc_summary) return;
+  const grp=document.getElementById('f-dcgrp').value;
+  const filtered=grp ? d.dc_summary.filter(r=>r[1]===grp) : d.dc_summary;
+  const dcNames=[...new Set(filtered.map(r=>r[0]))];
+  const totalLiters=filtered.reduce((s,r)=>s+r[2],0);
+  const totalVeh=filtered.reduce((s,r)=>s+r[4],0);
+  // Top DC by liters
+  const dcAgg={};
+  filtered.forEach(r=>{if(!dcAgg[r[0]])dcAgg[r[0]]=0;dcAgg[r[0]]+=r[2];});
+  const sortedDC=Object.entries(dcAgg).sort((a,b)=>b[1]-a[1]);
+  const topDCName=sortedDC[0]?sortedDC[0][0].replace(/^\d+\s+/,''):'—';
+  const topDCLit=sortedDC[0]?sortedDC[0][1]:0;
+
+  el.innerHTML=`
+    <div class="card" style="padding:12px">
+      <div style="font-size:10px;color:var(--muted);font-weight:700">📍 DC ที่แสดง</div>
+      <div style="font-size:22px;font-weight:900;color:var(--accent)">${dcNames.length}</div>
+      <div style="font-size:10px;color:var(--muted)">แห่ง</div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:10px;color:var(--muted);font-weight:700">⛽ ลิตรรวม</div>
+      <div style="font-size:22px;font-weight:900;color:var(--purple)">${fmt(totalLiters)}</div>
+      <div style="font-size:10px;color:var(--muted)">ลิตร</div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:10px;color:var(--muted);font-weight:700">🚗 รถรวม</div>
+      <div style="font-size:22px;font-weight:900;color:var(--green)">${fmt(totalVeh)}</div>
+      <div style="font-size:10px;color:var(--muted)">คัน</div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:10px;color:var(--muted);font-weight:700">🏆 Top DC</div>
+      <div style="font-size:13px;font-weight:900;color:var(--yellow);line-height:1.2">${topDCName}</div>
+      <div style="font-size:10px;color:var(--muted)">${fmt(topDCLit)} ล.</div>
+    </div>`;
+}
+
+// ════════ PA OVER ALERT ════════
+function checkPAAlert(d){
+  // Flash PA section if liters pct > 100
+  const pL=d.pa_liters>0?d.total_liters/d.pa_liters*100:0;
+  const pB=d.pa_baht>0?d.total_baht/d.pa_baht*100:0;
+  const paCards=document.querySelectorAll('.card');
+  // Find the PA liter card
+  const pfL=document.getElementById('pf-l');
+  const pfB=document.getElementById('pf-b');
+  if(pfL){
+    const parentCard=pfL.closest('.card');
+    if(parentCard){
+      if(pL>100){parentCard.classList.add('pa-over-alert');}
+      else{parentCard.classList.remove('pa-over-alert');}
+    }
+  }
+  if(pfB){
+    const parentCard=pfB.closest('.card');
+    if(parentCard){
+      if(pB>100){parentCard.classList.add('pa-over-alert');}
+      else{parentCard.classList.remove('pa-over-alert');}
+    }
+  }
+}
+
+// ════════ TOOLTIP ON PROGRESS BARS ════════
+function addProgressTooltips(){
+  document.querySelectorAll('.pa-track').forEach(track=>{
+    const fill=track.querySelector('.pa-fill');
+    if(!fill) return;
+    if(track.parentNode.querySelector('.tipwrap')) return; // already done
+    const pct=parseFloat(fill.style.width)||0;
+    track.parentNode.insertBefore(
+      Object.assign(document.createElement('div'),{
+        className:'tipwrap',
+        innerHTML:`<div class="tip">${pct.toFixed(1)}% ของ PA</div>`
+      }),track);
+    track.parentNode.querySelector('.tipwrap').appendChild(track);
+  });
+}
+
+// ════════ KEYBOARD SHORTCUTS ════════
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  const tabs=['overview','dc','vehicles','trend','alert'];
+  const n=parseInt(e.key);
+  if(n>=1&&n<=5){
+    const btn=document.querySelectorAll('.tabbar-btn')[n-1];
+    if(btn) btn.click();
+  }
+  if(e.key==='Escape'){
+    document.querySelectorAll('.moverlay.open').forEach(m=>m.classList.remove('open'));
+  }
+  if(e.key==='/'||e.key==='ก'){
+    e.preventDefault();
+    // Focus the active tab's search input
+    const activeTab=document.querySelector('.tab.on');
+    if(activeTab){
+      const inp=activeTab.querySelector('input[type=text],input:not([type])');
+      if(inp) inp.focus();
+    }
+  }
+});
+
+// ════════ PATCH RENDER ════════
+const _origRender=render;
+render=function(d){
+  _origRender(d);
+  renderBurnRate(d);
+  checkPAAlert(d);
+  setTimeout(addProgressTooltips,200);
+};
+
+const _origRenderDCTab=renderDCTab;
+renderDCTab=function(){
+  _origRenderDCTab();
+  renderDCMiniKPI(D);
+};
+
+// ════════ KEYBOARD HINT in topbar ════════
+document.addEventListener('DOMContentLoaded',()=>{
+  render(INIT);
+  // Add keyboard hint
+  const tr=document.querySelector('.topbar-r');
+  if(tr){
+    const hint=document.createElement('div');
+    hint.style.cssText='font-size:10px;color:var(--muted);display:flex;gap:4px;align-items:center;flex-wrap:wrap';
+    hint.innerHTML='<span class="kbd">1–5</span>สลับTab <span class="kbd">/</span>ค้นหา <span class="kbd">Esc</span>ปิด';
+    tr.appendChild(hint);
+  }
+});
+</script>
+</body>
+</html>
